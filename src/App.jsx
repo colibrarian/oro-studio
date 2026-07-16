@@ -1455,6 +1455,8 @@ export default function App() {
         }
         @media (max-width: 860px) {
           .oro-hero-grid, .oro-about-grid { grid-template-columns: 1fr !important; }
+          .oro-hero-grid > *:first-child { order: 2; }
+          .oro-hero-grid > *:last-child { order: 1; }
         }
       `}</style>
       <Nav />
