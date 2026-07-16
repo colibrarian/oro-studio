@@ -149,11 +149,12 @@ function Divider({ color = COLORS.gold, width = 64 }) {
   return <div style={{ width, height: 1, background: color, opacity: 0.6, margin: "18px 0" }} />;
 }
 
-function PhotoPlaceholder({ label = "Фото появится здесь", height = 260, style = {} }) {
+function PhotoPlaceholder({ label = "Фото появится здесь", height = 260, ratio, style = {} }) {
   return (
     <div
       style={{
-        height,
+        height: ratio ? undefined : height,
+        aspectRatio: ratio || undefined,
         borderRadius: 18,
         border: `1px dashed ${COLORS.oliveSoft}`,
         background:
@@ -175,9 +176,10 @@ function PhotoPlaceholder({ label = "Фото появится здесь", heig
 
 // Real photo with graceful fallback to the placeholder above if the file
 // isn't present yet (e.g. before /images/... is added to the repo's public folder).
-function Photo({ src, alt, label, height = 260, style = {} }) {
+// Pass `ratio` (e.g. "4 / 5") for a fixed-aspect crop instead of a fixed pixel height.
+function Photo({ src, alt, label, height = 260, ratio, style = {} }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <PhotoPlaceholder label={label} height={height} style={style} />;
+  if (failed) return <PhotoPlaceholder label={label} height={height} ratio={ratio} style={style} />;
   return (
     <img
       src={src}
@@ -185,7 +187,8 @@ function Photo({ src, alt, label, height = 260, style = {} }) {
       onError={() => setFailed(true)}
       style={{
         width: "100%",
-        height,
+        height: ratio ? undefined : height,
+        aspectRatio: ratio || undefined,
         objectFit: "cover",
         borderRadius: 18,
         boxShadow: "0 16px 34px -16px rgba(58,52,40,0.35)",
@@ -686,32 +689,61 @@ function Gallery() {
     { src: asset("images/gallery-birthday-portrait.jpg"), label: "Атмосфера ORO", alt: "Гостья студии" },
     { src: asset("images/gallery-workshop-alt.jpg"), label: "Творческий процесс", alt: "Мастер-класс" },
   ];
+  // Deterministic "scattered" offsets/rotations per card — organic but stable
+  // between renders (no layout shift, no hydration mismatch).
+  const scatter = [
+    { y: 0, r: -1.8 },
+    { y: 34, r: 1.2 },
+    { y: -14, r: -0.8 },
+    { y: 18, r: 2 },
+    { y: -6, r: -1.4 },
+    { y: 30, r: 1.6 },
+    { y: -20, r: -2.2 },
+    { y: 10, r: 0.6 },
+    { y: -12, r: -1 },
+  ];
   return (
-    <section id="gallery" style={{ padding: "100px 28px", background: COLORS.ivoryDeep }}>
+    <section id="gallery" style={{ padding: "100px 28px 120px", background: COLORS.ivoryDeep }}>
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
         <Eyebrow>Галерея</Eyebrow>
         <SectionTitle>Атмосферу невозможно забронировать отдельно</SectionTitle>
         <Divider />
         <div
           style={{
-            marginTop: 40,
+            marginTop: 50,
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 18,
+            gap: 34,
           }}
           className="oro-gallery-grid"
         >
           {photos.map((p, i) => (
-            <Photo key={p.src} src={p.src} alt={p.alt} label={p.label} height={i % 3 === 1 ? 300 : 220} />
+            <div
+              key={p.src}
+              className="oro-gallery-item"
+              style={{ "--gy": `${scatter[i % scatter.length].y}px`, "--gr": `${scatter[i % scatter.length].r}deg` }}
+            >
+              <Photo src={p.src} alt={p.alt} label={p.label} ratio="4 / 5" />
+            </div>
           ))}
         </div>
       </div>
       <style>{`
-        @media (max-width: 760px) {
-          .oro-gallery-grid { grid-template-columns: 1fr 1fr !important; }
+        .oro-gallery-item {
+          transform: translateY(var(--gy)) rotate(var(--gr));
+          transition: transform .4s ease, filter .4s ease;
         }
-        @media (max-width: 480px) {
+        .oro-gallery-item:hover {
+          transform: translateY(calc(var(--gy) - 8px)) rotate(0deg) scale(1.03);
+          z-index: 2;
+          position: relative;
+        }
+        @media (max-width: 860px) {
+          .oro-gallery-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 24px !important; }
+        }
+        @media (max-width: 520px) {
           .oro-gallery-grid { grid-template-columns: 1fr !important; }
+          .oro-gallery-item { transform: none !important; }
         }
       `}</style>
     </section>
