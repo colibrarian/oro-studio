@@ -21,6 +21,11 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 
+// Always resolves to the correct absolute path regardless of the deployed
+// subpath (e.g. GitHub Pages project sites) or whether the URL has a
+// trailing slash — avoids relative-path 404s.
+const asset = (path) => `${import.meta.env.BASE_URL}${path}`.replace(/\/{2,}/g, "/").replace(":/", "://");
+
 /* ---------------------------------------------------------
    TOKENS
 --------------------------------------------------------- */
@@ -437,7 +442,7 @@ function Hero() {
         </div>
 
         <Photo
-          src="/images/hero-consulting.jpg"
+          src={asset("images/hero-consulting.jpg")}
           alt="Встреча в ORO studio"
           label="Фото студии — гостиная зона"
           height={420}
@@ -465,7 +470,7 @@ function About() {
         className="oro-about-grid"
       >
         <Photo
-          src="/images/about-meeting.jpg"
+          src={asset("images/about-meeting.jpg")}
           alt="Разговор в ORO studio"
           label="Фото — зона отдыха"
           height={380}
@@ -671,15 +676,15 @@ function Amenities() {
 --------------------------------------------------------- */
 function Gallery() {
   const photos = [
-    { src: "/images/gallery-birthday-group.jpg", label: "Праздник в студии", alt: "Праздник в ORO studio" },
-    { src: "/images/gallery-meditation-circle.jpg", label: "Медитативный круг", alt: "Групповая медитация" },
-    { src: "/images/gallery-workshop-scrub.jpg", label: "Мастер-класс", alt: "Мастер-класс в студии" },
-    { src: "/images/gallery-macarons.jpg", label: "Праздничные детали", alt: "Праздничный десерт" },
-    { src: "/images/gallery-birthday-toast.jpg", label: "Тёплые встречи", alt: "Гости студии" },
-    { src: "/images/gallery-workshop-wide.jpg", label: "Пространство для практик", alt: "Практика в студии" },
-    { src: "/images/gallery-meditation-alt.jpg", label: "Момент тишины", alt: "Медитация" },
-    { src: "/images/gallery-birthday-portrait.jpg", label: "Атмосфера ORO", alt: "Гостья студии" },
-    { src: "/images/gallery-workshop-alt.jpg", label: "Творческий процесс", alt: "Мастер-класс" },
+    { src: asset("images/gallery-birthday-group.jpg"), label: "Праздник в студии", alt: "Праздник в ORO studio" },
+    { src: asset("images/gallery-meditation-circle.jpg"), label: "Медитативный круг", alt: "Групповая медитация" },
+    { src: asset("images/gallery-workshop-scrub.jpg"), label: "Мастер-класс", alt: "Мастер-класс в студии" },
+    { src: asset("images/gallery-macarons.jpg"), label: "Праздничные детали", alt: "Праздничный десерт" },
+    { src: asset("images/gallery-birthday-toast.jpg"), label: "Тёплые встречи", alt: "Гости студии" },
+    { src: asset("images/gallery-workshop-wide.jpg"), label: "Пространство для практик", alt: "Практика в студии" },
+    { src: asset("images/gallery-meditation-alt.jpg"), label: "Момент тишины", alt: "Медитация" },
+    { src: asset("images/gallery-birthday-portrait.jpg"), label: "Атмосфера ORO", alt: "Гостья студии" },
+    { src: asset("images/gallery-workshop-alt.jpg"), label: "Творческий процесс", alt: "Мастер-класс" },
   ];
   return (
     <section id="gallery" style={{ padding: "100px 28px", background: COLORS.ivoryDeep }}>
