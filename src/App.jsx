@@ -188,9 +188,22 @@ function Button({ href, children, variant = "primary", light, external }) {
     },
   };
   return (
-    <a href={href} style={styles[variant]} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+    <a
+      href={href}
+      className={`oro-btn oro-btn-${variant}${light ? " oro-btn-light" : ""}`}
+      style={styles[variant]}
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
       {children}
     </a>
+  );
+}
+
+function SwipeHint() {
+  return (
+    <p className="oro-swipe-hint" style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.08em", color: COLORS.oliveSoft, margin: "0 0 10px" }}>
+      Листайте →
+    </p>
   );
 }
 
@@ -365,7 +378,8 @@ function Nav() {
             <a
               key={href}
               href={href}
-              style={{ fontFamily: SANS, fontSize: 13, letterSpacing: "0.04em", color: COLORS.ink, textDecoration: "none", opacity: 0.85 }}
+              className="oro-nav-link"
+              style={{ fontFamily: SANS, fontSize: 13, letterSpacing: "0.04em", color: COLORS.ink, textDecoration: "none" }}
             >
               {label}
             </a>
@@ -374,7 +388,7 @@ function Nav() {
 
         <a
           href="#booking"
-          className="oro-nav-cta"
+          className="oro-nav-cta oro-btn oro-btn-primary"
           style={{
             fontFamily: SANS,
             fontSize: 13,
@@ -792,8 +806,12 @@ function Turnkey() {
         <Eyebrow>Выберите программу</Eyebrow>
         <SectionTitle>Программы для вашего праздника</SectionTitle>
         <Divider />
+        <div style={{ marginTop: 28 }}>
+          <SwipeHint />
+        </div>
         <div
-          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24, marginTop: 36 }}
+          className="oro-swipe oro-programs"
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24, marginTop: 8 }}
         >
           {PROGRAMS.map((p, i) => (
             <Card key={p.slug} style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -801,7 +819,7 @@ function Turnkey() {
                 src={asset(`images/program-${p.slug}.jpg`)}
                 alt={p.title}
                 label={`Фото: ${p.title.toLowerCase()}`}
-                ratio="16 / 10"
+                ratio="4 / 5"
                 style={{ borderRadius: 0, boxShadow: "none", border: "none" }}
               />
               <div style={{ padding: "22px 24px 26px" }}>
@@ -895,10 +913,11 @@ function Occasions() {
             </p>
             <a
               href={cta[1]}
+              className="oro-link"
               {...(cta[2] ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               style={{ fontFamily: SANS, fontSize: 13.5, color: COLORS.oliveDark, fontWeight: 500, textDecoration: "none" }}
             >
-              {cta[0]} →
+              {cta[0]} <span className="oro-arrow">→</span>
             </a>
           </Card>
         ))}
@@ -910,7 +929,118 @@ function Occasions() {
 /* ---------------------------------------------------------
    GALLERY
 --------------------------------------------------------- */
+function Lightbox({ photos, index, onClose, onNav }) {
+  const touchX = React.useRef(null);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") onNav(1);
+      if (e.key === "ArrowLeft") onNav(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose, onNav]);
+
+  const p = photos[index];
+  const navBtn = (side) => ({
+    position: "absolute",
+    top: "50%",
+    [side]: 14,
+    transform: "translateY(-50%)",
+    width: 44,
+    height: 44,
+    borderRadius: "50%",
+    border: "1px solid rgba(251,248,242,0.35)",
+    background: "rgba(58,52,40,0.45)",
+    color: COLORS.ivoryCard,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  });
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={p.alt}
+      onClick={onClose}
+      onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
+      onTouchEnd={(e) => {
+        if (touchX.current == null) return;
+        const dx = e.changedTouches[0].clientX - touchX.current;
+        if (Math.abs(dx) > 50) onNav(dx < 0 ? 1 : -1);
+        touchX.current = null;
+      }}
+      className="oro-lightbox"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "rgba(30,27,21,0.92)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "60px 16px",
+      }}
+    >
+      <img
+        src={p.src}
+        alt={p.alt}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 12, boxShadow: "0 30px 60px -20px rgba(0,0,0,0.6)" }}
+      />
+      <button aria-label="Закрыть" className="oro-icon-btn" onClick={onClose} style={{ ...navBtn("right"), top: 30, transform: "none" }}>
+        <X size={20} />
+      </button>
+      <button
+        aria-label="Предыдущее фото"
+        className="oro-icon-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNav(-1);
+        }}
+        style={navBtn("left")}
+      >
+        <ChevronLeft size={22} />
+      </button>
+      <button
+        aria-label="Следующее фото"
+        className="oro-icon-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNav(1);
+        }}
+        style={navBtn("right")}
+      >
+        <ChevronRight size={22} />
+      </button>
+      <p
+        style={{
+          position: "absolute",
+          bottom: 18,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontFamily: SANS,
+          fontSize: 13,
+          color: "rgba(251,248,242,0.75)",
+          margin: 0,
+        }}
+      >
+        {p.label} · {index + 1} / {photos.length}
+      </p>
+    </div>
+  );
+}
+
 function Gallery() {
+  const [open, setOpen] = useState(null);
   const photos = [
     { src: asset("images/gallery-birthday-group.jpg"), label: "Праздник в студии", alt: "Праздник в ORO Studio" },
     { src: asset("images/gallery-meditation-circle.jpg"), label: "Медитативный круг", alt: "Групповая встреча" },
@@ -934,42 +1064,63 @@ function Gallery() {
     { y: 10, r: 0.6 },
     { y: -12, r: -1 },
   ];
+  const close = React.useCallback(() => setOpen(null), []);
+  const nav = React.useCallback((d) => setOpen((i) => (i + d + photos.length) % photos.length), [photos.length]);
+
   return (
     <Section id="gallery" bg={COLORS.ivoryDeep} padding="100px 28px 120px">
       <Eyebrow>Галерея</Eyebrow>
       <SectionTitle>Посмотрите, как здесь бывает</SectionTitle>
       <Divider />
       <Lead>Живые люди. Настоящие встречи. Разные поводы. Одно пространство.</Lead>
+      <div style={{ marginTop: 28 }}>
+        <SwipeHint />
+      </div>
       <div
-        style={{ marginTop: 44, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 34 }}
-        className="oro-gallery-grid"
+        style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 34 }}
+        className="oro-gallery-grid oro-swipe"
       >
         {photos.map((p, i) => (
-          <div
+          <button
             key={p.src}
+            type="button"
+            onClick={() => setOpen(i)}
+            aria-label={`Открыть фото: ${p.label}`}
             className="oro-gallery-item"
-            style={{ "--gy": `${scatter[i % scatter.length].y}px`, "--gr": `${scatter[i % scatter.length].r}deg` }}
+            style={{
+              "--gy": `${scatter[i % scatter.length].y}px`,
+              "--gr": `${scatter[i % scatter.length].r}deg`,
+              padding: 0,
+              border: "none",
+              background: "none",
+              cursor: "zoom-in",
+              display: "block",
+              width: "100%",
+            }}
           >
             <Photo src={p.src} alt={p.alt} label={p.label} ratio="4 / 5" />
-          </div>
+          </button>
         ))}
       </div>
+      {open !== null && <Lightbox photos={photos} index={open} onClose={close} onNav={nav} />}
       <style>{`
         .oro-gallery-item {
           transform: translateY(var(--gy)) rotate(var(--gr));
           transition: transform .4s ease;
         }
-        .oro-gallery-item:hover {
-          transform: translateY(calc(var(--gy) - 8px)) rotate(0deg) scale(1.03);
-          z-index: 2;
-          position: relative;
+        @media (hover: hover) {
+          .oro-gallery-item:hover {
+            transform: translateY(calc(var(--gy) - 8px)) rotate(0deg) scale(1.03);
+            z-index: 2;
+            position: relative;
+          }
         }
-        @media (max-width: 860px) {
+        @media (max-width: 860px) and (min-width: 641px) {
           .oro-gallery-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 24px !important; }
         }
-        @media (max-width: 520px) {
-          .oro-gallery-grid { grid-template-columns: 1fr !important; }
+        @media (max-width: 640px) {
           .oro-gallery-item { transform: none !important; }
+          .oro-gallery-grid > * { flex-basis: 62% !important; }
         }
       `}</style>
     </Section>
@@ -1259,6 +1410,7 @@ function Booking() {
             </p>
             <button
               onClick={reset}
+              className="oro-btn oro-btn-secondary"
               style={{
                 marginTop: 22,
                 fontFamily: SANS,
@@ -1314,7 +1466,7 @@ function Booking() {
             <span style={{ fontFamily: SERIF, fontSize: 20, color: COLORS.ink }}>
               {MONTH_NAMES[cursor.month]} {cursor.year}
             </span>
-            <button onClick={() => changeMonth(1)} aria-label="Следующий месяц" style={iconBtnStyle}>
+            <button onClick={() => changeMonth(1)} aria-label="Следующий месяц" className="oro-icon-btn" style={iconBtnStyle}>
               <ChevronRight size={18} color={COLORS.oliveDark} />
             </button>
           </div>
@@ -1334,6 +1486,7 @@ function Booking() {
                 <button
                   key={i}
                   disabled={disabled}
+                  className="oro-pick"
                   onClick={() => {
                     setSelectedDay(d);
                     setSelectedTime(null);
@@ -1367,6 +1520,7 @@ function Booking() {
                     <button
                       key={t}
                       disabled={passed}
+                      className="oro-pick"
                       onClick={() => {
                         setSelectedTime(t);
                         setDuration((d) => Math.min(d, maxDurationFrom(t)));
@@ -1397,6 +1551,7 @@ function Booking() {
                 {DURATIONS.filter((h) => h <= maxDuration).map((h) => (
                   <button
                     key={h}
+                    className="oro-pick"
                     onClick={() => setDuration(h)}
                     style={{
                       width: 40,
@@ -1501,6 +1656,7 @@ function Booking() {
             <button
               type="submit"
               disabled={!canSubmit || submitting}
+              className={canSubmit ? "oro-btn oro-btn-primary" : undefined}
               style={{
                 marginTop: 4,
                 padding: "14px 20px",
@@ -1691,6 +1847,7 @@ function Footer() {
           </p>
           <a
             href="#booking"
+            className="oro-btn oro-btn-primary"
             style={{
               fontFamily: SANS,
               fontSize: 13,
@@ -1747,6 +1904,7 @@ function Footer() {
                 href={href}
                 aria-label={label}
                 title={label}
+                className="oro-social"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -1790,6 +1948,55 @@ export default function App() {
           outline-offset: 2px;
         }
         .oro-card { transition: transform .35s ease, box-shadow .35s ease; }
+
+        /* ---------- Buttons & interactive states ---------- */
+        .oro-btn {
+          transition: transform .25s ease, box-shadow .25s ease, background-color .25s ease, border-color .25s ease, color .25s ease;
+          will-change: transform;
+        }
+        .oro-btn:active { transform: translateY(0) scale(0.98) !important; }
+        .oro-nav-link { opacity: .85; position: relative; transition: opacity .2s ease; }
+        .oro-nav-link::after {
+          content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 1px;
+          background: ${COLORS.gold}; transform: scaleX(0); transform-origin: left; transition: transform .3s ease;
+        }
+        .oro-arrow { display: inline-block; transition: transform .25s ease; }
+        .oro-social, .oro-icon-btn, .oro-pick { transition: transform .2s ease, background-color .2s ease, border-color .2s ease, color .2s ease; }
+        @media (hover: hover) {
+          .oro-btn:hover { transform: translateY(-3px); }
+          .oro-btn-primary:hover { box-shadow: 0 18px 34px -12px rgba(79,90,61,0.65) !important; filter: brightness(1.06); }
+          .oro-btn-secondary:hover { background-color: rgba(111,122,86,0.1) !important; border-color: ${COLORS.oliveDark} !important; }
+          .oro-btn-secondary.oro-btn-light:hover { background-color: rgba(251,248,242,0.12) !important; border-color: ${COLORS.ivoryCard} !important; }
+          .oro-nav-link:hover { opacity: 1; }
+          .oro-nav-link:hover::after { transform: scaleX(1); }
+          .oro-link:hover .oro-arrow { transform: translateX(5px); }
+          .oro-social:hover { transform: translateY(-3px); border-color: ${COLORS.goldLight} !important; color: ${COLORS.goldLight} !important; }
+          .oro-icon-btn:not(:disabled):hover { transform: scale(1.08); }
+          .oro-pick:not(:disabled):hover { transform: translateY(-2px); border-color: ${COLORS.oliveDark} !important; }
+        }
+
+        /* ---------- Mobile swipe rows (programs, gallery) ---------- */
+        .oro-swipe-hint { display: none; }
+        @media (max-width: 640px) {
+          .oro-swipe-hint { display: block; }
+          .oro-swipe {
+            display: flex !important;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            gap: 14px !important;
+            margin-left: -28px;
+            margin-right: -28px;
+            padding: 6px 28px 20px;
+            scroll-padding: 0 28px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .oro-swipe::-webkit-scrollbar { display: none; }
+          .oro-swipe > * { flex: 0 0 80%; scroll-snap-align: start; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+        }
         @media (hover: hover) {
           .oro-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -14px rgba(58,52,40,0.28) !important; }
         }
