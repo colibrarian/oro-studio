@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Instagram,
   Facebook,
@@ -16,8 +16,14 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
+  Camera,
+  Gift,
+  Cake,
+  Heart,
+  Briefcase,
   Image as ImageIcon,
 } from "lucide-react";
 
@@ -25,6 +31,17 @@ import {
 // subpath (e.g. GitHub Pages project sites) or whether the URL has a
 // trailing slash — avoids relative-path 404s.
 const asset = (path) => `${import.meta.env.BASE_URL}${path}`.replace(/\/{2,}/g, "/").replace(":/", "://");
+
+/* ---------------------------------------------------------
+   CONTACTS — single source of truth
+--------------------------------------------------------- */
+const PHONE_DISPLAY = "+372 5336 3795";
+const PHONE_RAW = "37253363795";
+const EMAIL = "events@orostudiotallinn.com";
+const whatsapp = (text) => `https://wa.me/${PHONE_RAW}?text=${encodeURIComponent(text)}`;
+const WA_FORMAT = whatsapp("Здравствуйте! Помогите, пожалуйста, подобрать формат мероприятия в ORO Studio.");
+const WA_TURNKEY = whatsapp("Здравствуйте! Хочу узнать стоимость мероприятия под ключ в ORO Studio.");
+const WA_REGULAR = whatsapp("Здравствуйте! Хочу проводить регулярные мероприятия в ORO Studio.");
 
 /* ---------------------------------------------------------
    TOKENS
@@ -42,8 +59,8 @@ const COLORS = {
   inkSoft: "#6B6250",
 };
 
-const FONT_IMPORT =
-  "@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Montserrat:wght@300;400;500;600&display=swap');";
+const SANS = "'Montserrat', sans-serif";
+const SERIF = "'Cormorant Garamond', serif";
 
 /* ---------------------------------------------------------
    FLOWER OF LIFE — signature ornament, echoes the real ORO mark
@@ -66,7 +83,7 @@ function FlowerOfLife({ size = 300, opacity = 1, color = COLORS.gold, strokeWidt
     centers.push([2 * r * Math.cos(Math.PI / 6) * Math.cos(a - Math.PI / 6), 2 * r * Math.cos(Math.PI / 6) * Math.sin(a - Math.PI / 6)]);
   }
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ opacity }}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ opacity }} aria-hidden="true">
       <circle cx={cx} cy={cy} r={size * 0.47} fill="none" stroke={color} strokeWidth={strokeWidth} />
       {centers.map(([x, y], i) => (
         <circle key={i} cx={cx + x} cy={cy + y} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
@@ -81,28 +98,8 @@ function FlowerOfLife({ size = 300, opacity = 1, color = COLORS.gold, strokeWidt
 function Logo({ size = 26, oroColor = COLORS.gold, studioColor = COLORS.oliveDark }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "baseline", gap: 8 }}>
-      <span
-        style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontWeight: 600,
-          fontSize: size,
-          color: oroColor,
-          letterSpacing: "0.08em",
-        }}
-      >
-        ORO
-      </span>
-      <span
-        style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontStyle: "normal",
-          fontWeight: 400,
-          fontSize: size * 0.72,
-          color: studioColor,
-        }}
-      >
-        studio
-      </span>
+      <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: size, color: oroColor, letterSpacing: "0.08em" }}>ORO</span>
+      <span style={{ fontFamily: SERIF, fontWeight: 400, fontSize: size * 0.72, color: studioColor }}>studio</span>
     </span>
   );
 }
@@ -110,15 +107,15 @@ function Logo({ size = 26, oroColor = COLORS.gold, studioColor = COLORS.oliveDar
 /* ---------------------------------------------------------
    SMALL UI HELPERS
 --------------------------------------------------------- */
-function Eyebrow({ children }) {
+function Eyebrow({ children, light }) {
   return (
     <div
       style={{
-        fontFamily: "'Montserrat', sans-serif",
+        fontFamily: SANS,
         fontSize: 12,
         letterSpacing: "0.28em",
         textTransform: "uppercase",
-        color: COLORS.gold,
+        color: light ? COLORS.goldLight : COLORS.gold,
         fontWeight: 500,
         marginBottom: 10,
       }}
@@ -132,7 +129,7 @@ function SectionTitle({ children, light }) {
   return (
     <h2
       style={{
-        fontFamily: "'Cormorant Garamond', serif",
+        fontFamily: SERIF,
         fontWeight: 500,
         fontSize: "clamp(30px, 4vw, 46px)",
         color: light ? COLORS.ivoryCard : COLORS.ink,
@@ -147,6 +144,54 @@ function SectionTitle({ children, light }) {
 
 function Divider({ color = COLORS.gold, width = 64 }) {
   return <div style={{ width, height: 1, background: color, opacity: 0.6, margin: "18px 0" }} />;
+}
+
+function Lead({ children, light, style = {} }) {
+  return (
+    <p
+      style={{
+        fontFamily: SANS,
+        fontSize: 15.5,
+        lineHeight: 1.85,
+        color: light ? "rgba(251,248,242,0.82)" : COLORS.inkSoft,
+        fontWeight: 300,
+        margin: "0 0 14px",
+        maxWidth: 720,
+        ...style,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function Button({ href, children, variant = "primary", light, external }) {
+  const base = {
+    fontFamily: SANS,
+    fontSize: 14,
+    padding: "15px 30px",
+    borderRadius: 30,
+    textDecoration: "none",
+    display: "inline-block",
+  };
+  const styles = {
+    primary: {
+      ...base,
+      color: COLORS.ivoryCard,
+      background: light ? COLORS.gold : COLORS.oliveDark,
+      boxShadow: "0 14px 30px -10px rgba(79,90,61,0.55)",
+    },
+    secondary: {
+      ...base,
+      color: light ? COLORS.ivoryCard : COLORS.ink,
+      border: `1px solid ${light ? "rgba(251,248,242,0.5)" : COLORS.oliveSoft}`,
+    },
+  };
+  return (
+    <a href={href} style={styles[variant]} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+      {children}
+    </a>
+  );
 }
 
 function PhotoPlaceholder({ label = "Фото появится здесь", height = 260, ratio, style = {} }) {
@@ -165,11 +210,13 @@ function PhotoPlaceholder({ label = "Фото появится здесь", heig
         justifyContent: "center",
         gap: 8,
         color: COLORS.oliveSoft,
+        textAlign: "center",
+        padding: 12,
         ...style,
       }}
     >
       <ImageIcon size={26} strokeWidth={1.3} />
-      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12, letterSpacing: "0.05em" }}>{label}</span>
+      <span style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.05em" }}>{label}</span>
     </div>
   );
 }
@@ -177,13 +224,15 @@ function PhotoPlaceholder({ label = "Фото появится здесь", heig
 // Real photo with graceful fallback to the placeholder above if the file
 // isn't present yet (e.g. before /images/... is added to the repo's public folder).
 // Pass `ratio` (e.g. "4 / 5") for a fixed-aspect crop instead of a fixed pixel height.
-function Photo({ src, alt, label, height = 260, ratio, style = {} }) {
+function Photo({ src, alt, label, height = 260, ratio, eager = false, style = {} }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <PhotoPlaceholder label={label} height={height} ratio={ratio} style={style} />;
   return (
     <img
       src={src}
       alt={alt}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
       onError={() => setFailed(true)}
       style={{
         width: "100%",
@@ -202,26 +251,65 @@ function Photo({ src, alt, label, height = 260, ratio, style = {} }) {
 function Card({ children, style = {} }) {
   return (
     <div
+      className="oro-card"
       style={{
         background: COLORS.ivoryCard,
         borderRadius: 20,
         padding: "30px 28px",
         boxShadow: "0 10px 30px -14px rgba(58,52,40,0.18)",
         border: "1px solid rgba(111,122,86,0.12)",
-        transition: "transform .35s ease, box-shadow .35s ease",
         ...style,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow = "0 18px 40px -14px rgba(58,52,40,0.28)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 10px 30px -14px rgba(58,52,40,0.18)";
       }}
     >
       {children}
     </div>
+  );
+}
+
+function CardTitle({ children, color = COLORS.olive, size = 24 }) {
+  return <h3 style={{ fontFamily: SERIF, fontSize: size, fontWeight: 500, color, margin: "0 0 14px", lineHeight: 1.2 }}>{children}</h3>;
+}
+
+function BulletList({ items, light }) {
+  return (
+    <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 11 }}>
+      {items.map((item) => (
+        <li
+          key={item}
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 12,
+            fontFamily: SANS,
+            fontSize: 14.5,
+            lineHeight: 1.5,
+            fontWeight: 300,
+            color: light ? COLORS.ivoryCard : COLORS.ink,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: light ? COLORS.goldLight : COLORS.gold,
+              flex: "0 0 auto",
+              transform: "translateY(-2px)",
+            }}
+          />
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Section({ id, bg = COLORS.ivory, children, ornament, padding = "100px 28px", maxWidth = 1180 }) {
+  return (
+    <section id={id} style={{ padding, background: bg, position: "relative", overflow: "hidden" }}>
+      {ornament}
+      <div style={{ maxWidth, margin: "0 auto", position: "relative" }}>{children}</div>
+    </section>
   );
 }
 
@@ -233,17 +321,17 @@ function Nav() {
   const [solid, setSolid] = useState(false);
   useEffect(() => {
     const onScroll = () => setSolid(window.scrollY > 40);
-    window.addEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const links = [
     ["О студии", "#about"],
-    ["Возможности", "#amenities"],
+    ["Форматы", "#formats"],
+    ["Под ключ", "#turnkey"],
     ["Галерея", "#gallery"],
-    ["Стоимость", "#pricing"],
-    ["Правила", "#rules"],
-    ["Бронирование", "#booking"],
+    ["Цены", "#pricing"],
+    ["Календарь", "#booking"],
   ];
 
   return (
@@ -252,7 +340,7 @@ function Nav() {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        background: solid ? "rgba(247,243,236,0.92)" : "transparent",
+        background: solid || open ? "rgba(247,243,236,0.95)" : "transparent",
         backdropFilter: solid ? "blur(10px)" : "none",
         borderBottom: solid ? "1px solid rgba(111,122,86,0.14)" : "1px solid transparent",
         transition: "all .35s ease",
@@ -268,34 +356,27 @@ function Nav() {
           justifyContent: "space-between",
         }}
       >
-        <a href="#top" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+        <a href="#top" aria-label="ORO Studio — наверх" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
           <Logo size={26} />
         </a>
 
-        <div style={{ display: "flex", gap: 34 }} className="oro-nav-links">
+        <nav style={{ display: "flex", gap: 30 }} className="oro-nav-links">
           {links.map(([label, href]) => (
             <a
               key={href}
               href={href}
-              style={{
-                fontFamily: "'Montserrat', sans-serif",
-                fontSize: 13,
-                letterSpacing: "0.04em",
-                color: COLORS.ink,
-                textDecoration: "none",
-                opacity: 0.85,
-              }}
+              style={{ fontFamily: SANS, fontSize: 13, letterSpacing: "0.04em", color: COLORS.ink, textDecoration: "none", opacity: 0.85 }}
             >
               {label}
             </a>
           ))}
-        </div>
+        </nav>
 
         <a
           href="#booking"
           className="oro-nav-cta"
           style={{
-            fontFamily: "'Montserrat', sans-serif",
+            fontFamily: SANS,
             fontSize: 13,
             color: COLORS.ivoryCard,
             background: COLORS.oliveDark,
@@ -311,7 +392,9 @@ function Nav() {
         <button
           onClick={() => setOpen(!open)}
           className="oro-burger"
-          style={{ display: "none", background: "none", border: "none", color: COLORS.ink }}
+          aria-label={open ? "Закрыть меню" : "Открыть меню"}
+          aria-expanded={open}
+          style={{ display: "none", background: "none", border: "none", color: COLORS.ink, cursor: "pointer" }}
         >
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -319,16 +402,16 @@ function Nav() {
 
       {open && (
         <div className="oro-mobile-menu" style={{ background: COLORS.ivory, padding: "10px 28px 24px", display: "none" }}>
-          {links.map(([label, href]) => (
+          {[...links, ["Забронировать", "#booking"]].map(([label, href], i) => (
             <a
-              key={href}
+              key={label + i}
               href={href}
               onClick={() => setOpen(false)}
               style={{
                 display: "block",
-                padding: "10px 0",
-                fontFamily: "'Montserrat', sans-serif",
-                fontSize: 14,
+                padding: "12px 0",
+                fontFamily: SANS,
+                fontSize: 15,
                 color: COLORS.ink,
                 textDecoration: "none",
                 borderBottom: "1px solid rgba(111,122,86,0.14)",
@@ -341,7 +424,7 @@ function Nav() {
       )}
 
       <style>{`
-        @media (max-width: 860px) {
+        @media (max-width: 920px) {
           .oro-nav-links, .oro-nav-cta { display: none !important; }
           .oro-burger { display: block !important; }
           .oro-mobile-menu { display: block !important; }
@@ -382,24 +465,22 @@ function Hero() {
         className="oro-hero-grid"
       >
         <div>
-          <Eyebrow>Таллин · пространство состояния</Eyebrow>
+          <Eyebrow>В самом сердце Таллинна</Eyebrow>
           <h1
             style={{
-              fontFamily: "'Cormorant Garamond', serif",
+              fontFamily: SERIF,
               fontWeight: 500,
-              fontSize: "clamp(40px, 6vw, 68px)",
-              lineHeight: 1.08,
+              fontSize: "clamp(42px, 6vw, 72px)",
+              lineHeight: 1.06,
               color: COLORS.ink,
               margin: "0 0 22px",
             }}
           >
-            ORO studio — <br />
-            <span style={{ color: COLORS.olive, fontStyle: "italic" }}>про замедление</span> в мире,
-            который постоянно торопит
+            Пространство, где <span style={{ color: COLORS.olive, fontStyle: "italic" }}>хочется встречаться</span>
           </h1>
           <p
             style={{
-              fontFamily: "'Montserrat', sans-serif",
+              fontFamily: SANS,
               fontSize: 16,
               lineHeight: 1.7,
               color: COLORS.inkSoft,
@@ -408,47 +489,23 @@ function Hero() {
               fontWeight: 300,
             }}
           >
-            Про мягкость вместо напряжения. Про красоту без громкости. Камерная студия для встреч,
-            мастер-классов, съёмок и тихих женских разговоров.
+            Камерная студия для встреч, мастер-классов, дней рождения и девичников. Аренда пространства
+            или мероприятие под ключ — до 15 человек.
           </p>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <a
-              href="#booking"
-              style={{
-                fontFamily: "'Montserrat', sans-serif",
-                fontSize: 14,
-                color: COLORS.ivoryCard,
-                background: COLORS.oliveDark,
-                padding: "15px 30px",
-                borderRadius: 30,
-                textDecoration: "none",
-                boxShadow: "0 14px 30px -10px rgba(79,90,61,0.55)",
-              }}
-            >
-              Забронировать студию
-            </a>
-            <a
-              href="#about"
-              style={{
-                fontFamily: "'Montserrat', sans-serif",
-                fontSize: 14,
-                color: COLORS.ink,
-                border: `1px solid ${COLORS.oliveSoft}`,
-                padding: "15px 30px",
-                borderRadius: 30,
-                textDecoration: "none",
-              }}
-            >
-              Узнать больше
-            </a>
+            <Button href="#booking">Забронировать студию</Button>
+            <Button href="#booking" variant="secondary">
+              Посмотреть календарь
+            </Button>
           </div>
         </div>
 
         <Photo
           src={asset("images/hero-consulting.jpg")}
-          alt="Встреча в ORO studio"
+          alt="Гостиная зона ORO Studio"
           label="Фото студии — гостиная зона"
           height={420}
+          eager
         />
       </div>
     </section>
@@ -456,221 +513,397 @@ function Hero() {
 }
 
 /* ---------------------------------------------------------
-   ABOUT
+   ABOUT — история Наталии
 --------------------------------------------------------- */
 function About() {
   return (
-    <section id="about" style={{ padding: "100px 28px", background: COLORS.ivory }}>
+    <Section id="about">
       <div
-        style={{
-          maxWidth: 1180,
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "0.9fr 1.1fr",
-          gap: 60,
-          alignItems: "center",
-        }}
+        style={{ display: "grid", gridTemplateColumns: "0.85fr 1.15fr", gap: 60, alignItems: "center" }}
         className="oro-about-grid"
       >
-        <Photo
-          src={asset("images/about-meeting.jpg")}
-          alt="Разговор в ORO studio"
-          label="Фото — зона отдыха"
-          height={380}
-        />
+        <Photo src={asset("images/natalia.jpg")} alt="Наталия, создатель ORO Studio" label="Фото Наталии" ratio="4 / 5" />
         <div>
           <Eyebrow>О студии</Eyebrow>
-          <SectionTitle>Здесь проходят камерные встречи, творческие события и съёмки</SectionTitle>
+          <SectionTitle>Меня зовут Наталия, я создатель ORO Studio</SectionTitle>
           <Divider />
-          <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 15.5, lineHeight: 1.9, color: COLORS.inkSoft, fontWeight: 300 }}>
-            ORo создавалась как пространство для встреч, разговоров, идей и пауз между большими шагами.
-            Здесь проходят камерные женские встречи, творческие события и съёмки, в которых важна не
-            только картинка, но и чувство внутри неё.
+          <Lead>
+            Я всегда любила объединять людей, знакомиться с новым и создавать вокруг себя пространство, в котором
+            интересно быть. Так появилось ORO.
+          </Lead>
+          <Lead>
+            Мне хотелось создать не просто красивую студию на несколько часов, а живое место для людей и их идей.
+            Сюда можно прийти на женскую встречу, познакомиться с интересным экспертом, провести свой мастер-класс —
+            или собрать близких и красиво отметить день рождения или девичник.
+          </Lead>
+          <Lead>
+            Сегодня здесь знакомятся с эфирными маслами и минералами, завтра играют в трансформационную игру, рисуют,
+            говорят о финансах или астрологии, а через несколько дней пространство полностью меняется под чьё-то
+            личное событие.
+          </Lead>
+          <p style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 24, lineHeight: 1.35, color: COLORS.olive, margin: "26px 0 0" }}>
+            «ORO каждый раз немного разная. Потому что её наполняют люди.»
           </p>
-          <p
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontStyle: "italic",
-              fontSize: 22,
-              color: COLORS.olive,
-              marginTop: 24,
-            }}
-          >
-            «ORo — про замедление, эстетику и присутствие»
+          <p style={{ fontFamily: SANS, fontSize: 14.5, color: COLORS.ink, fontWeight: 500, margin: "22px 0 0" }}>
+            Здесь уже есть пространство и атмосфера. А вы приходите со своей идеей.
           </p>
         </div>
       </div>
-    </section>
+    </Section>
   );
 }
 
 /* ---------------------------------------------------------
-   USE CASES
+   FORMATS — что можно провести
 --------------------------------------------------------- */
-function UseCases() {
+function Formats() {
+  const experts = [
+    "Консультации и индивидуальная работа",
+    "Психологические и коучинговые встречи",
+    "Мастер-классы и творческие занятия",
+    "Лекции и небольшие обучения",
+    "Женские встречи и регулярные группы",
+    "Трансформационные игры",
+    "Фото- и видеосъёмки",
+  ];
+  const privateEvents = ["Дни рождения", "Девичники", "Встречи подруг", "Тематические вечера", "Творческие праздники"];
+
+  return (
+    <Section
+      id="formats"
+      bg={COLORS.olive}
+      ornament={
+        <div style={{ position: "absolute", bottom: -80, left: -80, pointerEvents: "none" }}>
+          <FlowerOfLife size={360} opacity={0.12} color={COLORS.ivoryCard} />
+        </div>
+      }
+    >
+      <Eyebrow light>Форматы</Eyebrow>
+      <SectionTitle light>Здесь можно провести своё мероприятие</SectionTitle>
+      <Divider color={COLORS.ivoryCard} />
+      <Lead light>
+        ORO Studio подходит для небольших камерных событий — комфортно до 15 человек. Можно просто арендовать
+        пространство или выбрать мероприятие под ключ.
+      </Lead>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 36 }} className="oro-two-col">
+        {[
+          { icon: Briefcase, title: "Для экспертов", items: experts },
+          { icon: Heart, title: "Для частных событий", items: privateEvents },
+        ].map(({ icon: Icon, title, items }) => (
+          <div
+            key={title}
+            style={{
+              background: "rgba(251,248,242,0.08)",
+              border: "1px solid rgba(251,248,242,0.25)",
+              borderRadius: 20,
+              padding: "28px 28px 30px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+              <Icon size={20} color={COLORS.goldLight} strokeWidth={1.5} />
+              <CardTitle color={COLORS.ivoryCard} size={26}>
+                {title}
+              </CardTitle>
+            </div>
+            <BulletList items={items} light />
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+/* ---------------------------------------------------------
+   WHY ORO
+--------------------------------------------------------- */
+function Why() {
   const items = [
-    "Консультирование",
-    "Трансформационные и настольные игры",
-    "Арома-мероприятия",
-    "Время для себя",
-    "Проведение встреч",
-    "Проведение праздников",
-    "Лекции",
-    "Мастер-классы",
-    "Дегустации",
-    "Мастер-майнды",
-    "Коворкинг",
-    "Фотосессии",
+    {
+      icon: MapPin,
+      title: "В самом сердце города",
+      text: "Не нужно ехать далеко ради красивого мероприятия — гостям удобно добираться.",
+    },
+    {
+      icon: Users,
+      title: "Камерный формат",
+      text: "Люди здесь действительно общаются, а не теряются в огромном зале. До 15 человек — комфортно.",
+    },
+    {
+      icon: Camera,
+      title: "Красивые фотозоны",
+      text: "Готовые зоны для общих фото, контента и кадров, которые захочется сохранить.",
+    },
+    {
+      icon: Coffee,
+      title: "Всё для атмосферы",
+      text: "Кофе, чай, молоко и лёгкие угощения — мелочи, которые превращают встречу в приятный вечер.",
+    },
   ];
   return (
-    <section
-      style={{
-        padding: "100px 28px",
-        background: COLORS.olive,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div style={{ position: "absolute", bottom: -80, left: -80, pointerEvents: "none" }}>
-        <FlowerOfLife size={360} opacity={0.12} color={COLORS.ivoryCard} />
-      </div>
-      <div style={{ maxWidth: 1180, margin: "0 auto", position: "relative" }}>
-        <Eyebrow>Идеи назначения студии</Eyebrow>
-        <SectionTitle light>Пространство для того, что важно именно вам</SectionTitle>
-        <Divider color={COLORS.ivoryCard} />
-        <div
-          style={{
-            marginTop: 40,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: 14,
-          }}
-        >
-          {items.map((item) => (
+    <Section id="why">
+      <Eyebrow>Почему ORO Studio</Eyebrow>
+      <SectionTitle>Уютное пространство, где не нужно начинать с пустой комнаты</SectionTitle>
+      <Divider />
+      <div
+        style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginTop: 40 }}
+        className="oro-four-col"
+      >
+        {items.map(({ icon: Icon, title, text }) => (
+          <Card key={title} style={{ padding: "28px 24px" }}>
             <div
-              key={item}
               style={{
-                background: "rgba(251,248,242,0.1)",
-                border: "1px solid rgba(251,248,242,0.25)",
-                borderRadius: 14,
-                padding: "16px 20px",
-                fontFamily: "'Montserrat', sans-serif",
-                fontSize: 14.5,
-                color: COLORS.ivoryCard,
+                width: 46,
+                height: 46,
+                borderRadius: "50%",
+                background: COLORS.ivoryDeep,
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
+                justifyContent: "center",
+                marginBottom: 18,
               }}
             >
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.goldLight, flex: "0 0 auto" }} />
-              {item}
+              <Icon size={20} color={COLORS.gold} strokeWidth={1.5} />
             </div>
+            <CardTitle size={22}>{title}</CardTitle>
+            <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.7, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>{text}</p>
+          </Card>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+/* ---------------------------------------------------------
+   TURNKEY — мероприятия под ключ + программы
+--------------------------------------------------------- */
+const PROGRAMS = [
+  {
+    slug: "perfume",
+    title: "Создание собственного парфюма",
+    text: "Каждая участница знакомится с ароматами и собирает свою композицию из эфирных масел. На память остаётся свой аромат.",
+  },
+  {
+    slug: "perfume-lecture",
+    title: "Парфюмерная лекция",
+    text: "Бренды и интересные ароматы, разбор нот и впечатлений. Понравившийся парфюм можно купить прямо на месте.",
+  },
+  {
+    slug: "candles",
+    title: "Программные свечи",
+    text: "Выбираете тему, с которой хочется работать, и создаёте свечу-ритуал — символ вашего намерения.",
+  },
+  {
+    slug: "astrology",
+    title: "Астрологический вечер",
+    text: "Ваш астрологический портрет. Тему выбираете заранее: отношения, предназначение, деньги, сильные стороны, важный период или своя.",
+  },
+  {
+    slug: "numerology",
+    title: "Нумерология",
+    text: "Взгляд на себя и свою жизнь через числа. Тему программы подбираем под вашу компанию.",
+  },
+  {
+    slug: "minerals",
+    title: "Минералы и браслеты",
+    text: "Знакомимся с минералами, выбираем подходящие камни и создаём свой браслет — памятный подарок каждой участнице.",
+  },
+  {
+    slug: "game",
+    title: "Трансформационная игра «Куда приводят мечты»",
+    text: "Когда хочется чего-то большего, чем развлечения: взглянуть на свои желания и цели под другим углом — смеясь и размышляя.",
+  },
+];
+
+function Turnkey() {
+  const timeline = [
+    { hours: "2 часа", text: "Выбранная программа с экспертом" },
+    { hours: "2 часа", text: "Время только для вашей компании: общение, фото, просекко, подарки и еда — никто не торопит" },
+  ];
+  return (
+    <Section id="turnkey" bg={COLORS.ivoryDeep}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 50, alignItems: "start" }} className="oro-two-col">
+        <div>
+          <Eyebrow>Мероприятия под ключ</Eyebrow>
+          <SectionTitle>А если вы хотите не просто помещение?</SectionTitle>
+          <Divider />
+          <Lead>
+            Хочется устроить день рождения или девичник, но не хочется самой искать программу, эксперта и еду и
+            продумывать каждую мелочь? Доверьте организацию нам.
+          </Lead>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "22px 0 30px" }}>
+            {["От 5 человек", "Бутылочка просекко в подарок", "Готовые фотозоны"].map((t) => (
+              <span
+                key={t}
+                style={{
+                  fontFamily: SANS,
+                  fontSize: 12.5,
+                  color: COLORS.oliveDark,
+                  background: COLORS.ivoryCard,
+                  border: "1px solid rgba(111,122,86,0.2)",
+                  padding: "8px 14px",
+                  borderRadius: 20,
+                }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+          <Button href={WA_TURNKEY} external>
+            Узнать стоимость
+          </Button>
+          <p style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.inkSoft, fontWeight: 300, margin: "14px 0 0" }}>
+            Стоимость зависит от формата и количества гостей.
+          </p>
+        </div>
+
+        <Card>
+          <CardTitle>Вы получаете студию на 4 часа</CardTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 8 }}>
+            {timeline.map((t, i) => (
+              <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                <div
+                  style={{
+                    flex: "0 0 auto",
+                    minWidth: 74,
+                    textAlign: "center",
+                    fontFamily: SERIF,
+                    fontSize: 20,
+                    fontWeight: 600,
+                    color: i === 0 ? COLORS.ivoryCard : COLORS.oliveDark,
+                    background: i === 0 ? COLORS.olive : COLORS.ivoryDeep,
+                    borderRadius: 12,
+                    padding: "8px 10px",
+                  }}
+                >
+                  {t.hours}
+                </div>
+                <p style={{ fontFamily: SANS, fontSize: 14, lineHeight: 1.65, color: COLORS.ink, fontWeight: 300, margin: "6px 0 0" }}>
+                  {t.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Programs */}
+      <div style={{ marginTop: 80 }}>
+        <Eyebrow>Выберите программу</Eyebrow>
+        <SectionTitle>Программы для вашего праздника</SectionTitle>
+        <Divider />
+        <div
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24, marginTop: 36 }}
+        >
+          {PROGRAMS.map((p, i) => (
+            <Card key={p.slug} style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <Photo
+                src={asset(`images/program-${p.slug}.jpg`)}
+                alt={p.title}
+                label={`Фото: ${p.title.toLowerCase()}`}
+                ratio="16 / 10"
+                style={{ borderRadius: 0, boxShadow: "none", border: "none" }}
+              />
+              <div style={{ padding: "22px 24px 26px" }}>
+                <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.2em", color: COLORS.gold, marginBottom: 8 }}>
+                  {String(i + 1).padStart(2, "0")}
+                </div>
+                <CardTitle size={22} color={COLORS.ink}>
+                  {p.title}
+                </CardTitle>
+                <p style={{ fontFamily: SANS, fontSize: 13.5, lineHeight: 1.7, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>
+                  {p.text}
+                </p>
+              </div>
+            </Card>
           ))}
         </div>
       </div>
-    </section>
+
+      {/* Add-ons */}
+      <div style={{ marginTop: 50, display: "grid", gridTemplateColumns: "1fr 1fr 1.3fr", gap: 20 }} className="oro-addons">
+        <Card style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+          <Coffee size={22} color={COLORS.gold} strokeWidth={1.5} style={{ flex: "0 0 auto", marginTop: 4 }} />
+          <div>
+            <CardTitle size={21}>Кейтеринг</CardTitle>
+            <p style={{ fontFamily: SANS, fontSize: 13.5, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>
+              Поможем организовать еду и угощения для вашей компании.
+            </p>
+          </div>
+        </Card>
+        <Card style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+          <Cake size={22} color={COLORS.gold} strokeWidth={1.5} style={{ flex: "0 0 auto", marginTop: 4 }} />
+          <div>
+            <CardTitle size={21}>Торт</CardTitle>
+            <p style={{ fontFamily: SANS, fontSize: 13.5, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>Можно заказать отдельно.</p>
+          </div>
+        </Card>
+        <div style={{ alignSelf: "center", padding: "0 6px" }}>
+          <p style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 21, color: COLORS.olive, margin: "0 0 6px", lineHeight: 1.35 }}>
+            Можно добавить к празднику, чтобы не организовывать всё самостоятельно.
+          </p>
+          <p style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>
+            Дополнительные услуги оплачиваются отдельно.
+          </p>
+        </div>
+      </div>
+    </Section>
   );
 }
 
 /* ---------------------------------------------------------
-   AMENITIES
+   OCCASIONS — день рождения, девичник, эксперты
 --------------------------------------------------------- */
-function Amenities() {
-  const included = [
-    { icon: Coffee, text: "Качественный кофе" },
-    { icon: Sparkles, text: "Коллекция трав и чая" },
-    { icon: Coffee, text: "Лёгкие закуски (конфеты, печенье)" },
-    { icon: Refrigerator, text: "Кулер с водой (горячая / холодная)" },
-    { icon: Sparkles, text: "Канцелярия" },
+function Occasions() {
+  const items = [
+    {
+      icon: Gift,
+      eyebrow: "День рождения",
+      title: "Праздник, который подходит именно вам",
+      text: "Не обязательно выбирать между рестораном и домашними посиделками. Соберите своих людей в красивом пространстве и добавьте программу — или просто красивый вечер с едой, тортом и фотографиями. Выбираете вы, мы помогаем всё собрать.",
+      cta: ["Выбрать дату", "#booking"],
+    },
+    {
+      icon: Sparkles,
+      eyebrow: "Девичник",
+      title: "Соберите своих девочек и сделайте вечер особенным",
+      text: "Можно прийти просто пообщаться. А можно создать свой аромат, сделать свечи или браслеты, узнать астрологический портрет или сыграть в трансформационную игру. От 5 человек.",
+      cta: ["Выбрать дату", "#booking"],
+    },
+    {
+      icon: Briefcase,
+      eyebrow: "Для экспертов",
+      title: "Красивое пространство для вашей встречи",
+      text: "Консультант, психолог, коуч, преподаватель, ведущий игры или мастер — проводите здесь консультации, группы, лекции и мастер-классы. Не нужно каждый раз искать новое помещение.",
+      cta: ["Обсудить регулярные встречи", WA_REGULAR, true],
+    },
   ];
-  const studio = [
-    { icon: Wifi, text: "Хороший Wi-Fi" },
-    { icon: Tv, text: "Телевизор с подключением ноутбука" },
-    { icon: Sparkles, text: "Bluetooth-колонка JBL" },
-    { icon: Coffee, text: "Кофемашина и капучинатор" },
-    { icon: Refrigerator, text: "Мини-холодильник" },
-    { icon: Refrigerator, text: "Кулер с горячей и холодной водой" },
-    { icon: Users, text: "Обеденная группа и сервиз на 15 персон" },
-    { icon: Sparkles, text: "Бокалы для вина / шампанского" },
-  ];
-  const floor = ["Духовой шкаф", "Посудомоечная машина", "Микроволновая печь"];
-
   return (
-    <section id="amenities" style={{ padding: "100px 28px", background: COLORS.ivory }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-        <Eyebrow>Возможности студии</Eyebrow>
-        <SectionTitle>Всё, чтобы вам осталось просто быть</SectionTitle>
-        <Divider />
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 44 }} className="oro-amenities-grid">
-          <Card>
-            <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: COLORS.olive, margin: "0 0 18px" }}>
-              В студии
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {studio.map(({ icon: Icon, text }) => (
-                <div key={text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <Icon size={17} color={COLORS.gold} strokeWidth={1.5} />
-                  <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 14, color: COLORS.ink, fontWeight: 300 }}>
-                    {text}
-                  </span>
-                </div>
-              ))}
+    <Section id="occasions">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }} className="oro-three-col">
+        {items.map(({ icon: Icon, eyebrow, title, text, cta }) => (
+          <Card key={eyebrow} style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <Icon size={18} color={COLORS.gold} strokeWidth={1.5} />
+              <Eyebrow>{eyebrow}</Eyebrow>
             </div>
+            <CardTitle size={25} color={COLORS.ink}>
+              {title}
+            </CardTitle>
+            <p style={{ fontFamily: SANS, fontSize: 14, lineHeight: 1.75, color: COLORS.inkSoft, fontWeight: 300, margin: "0 0 22px", flex: 1 }}>
+              {text}
+            </p>
+            <a
+              href={cta[1]}
+              {...(cta[2] ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              style={{ fontFamily: SANS, fontSize: 13.5, color: COLORS.oliveDark, fontWeight: 500, textDecoration: "none" }}
+            >
+              {cta[0]} →
+            </a>
           </Card>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <Card>
-              <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: COLORS.olive, margin: "0 0 18px" }}>
-                Включено в стоимость
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {included.map(({ icon: Icon, text }) => (
-                  <div key={text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <Icon size={17} color={COLORS.gold} strokeWidth={1.5} />
-                    <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 14, color: COLORS.ink, fontWeight: 300 }}>
-                      {text}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card>
-              <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: COLORS.olive, margin: "0 0 12px" }}>
-                На этаже, по согласованию
-              </h3>
-              <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13, color: COLORS.inkSoft, fontWeight: 300, margin: "0 0 14px" }}>
-                Доступны в общем помещении на этаже, использование согласовывается при бронировании:
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {floor.map((t) => (
-                  <span
-                    key={t}
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: 12.5,
-                      color: COLORS.oliveDark,
-                      background: COLORS.ivoryDeep,
-                      padding: "8px 14px",
-                      borderRadius: 20,
-                    }}
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          </div>
-        </div>
+        ))}
       </div>
-
-      <style>{`
-        @media (max-width: 760px) {
-          .oro-amenities-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </section>
+    </Section>
   );
 }
 
@@ -679,18 +912,17 @@ function Amenities() {
 --------------------------------------------------------- */
 function Gallery() {
   const photos = [
-    { src: asset("images/gallery-birthday-group.jpg"), label: "Праздник в студии", alt: "Праздник в ORO studio" },
-    { src: asset("images/gallery-meditation-circle.jpg"), label: "Медитативный круг", alt: "Групповая медитация" },
+    { src: asset("images/gallery-birthday-group.jpg"), label: "Праздник в студии", alt: "Праздник в ORO Studio" },
+    { src: asset("images/gallery-meditation-circle.jpg"), label: "Медитативный круг", alt: "Групповая встреча" },
     { src: asset("images/gallery-workshop-scrub.jpg"), label: "Мастер-класс", alt: "Мастер-класс в студии" },
     { src: asset("images/gallery-macarons.jpg"), label: "Праздничные детали", alt: "Праздничный десерт" },
     { src: asset("images/gallery-birthday-toast.jpg"), label: "Тёплые встречи", alt: "Гости студии" },
     { src: asset("images/gallery-workshop-wide.jpg"), label: "Пространство для практик", alt: "Практика в студии" },
-    { src: asset("images/gallery-meditation-alt.jpg"), label: "Момент тишины", alt: "Медитация" },
+    { src: asset("images/gallery-meditation-alt.jpg"), label: "Момент тишины", alt: "Встреча в студии" },
     { src: asset("images/gallery-birthday-portrait.jpg"), label: "Атмосфера ORO", alt: "Гостья студии" },
     { src: asset("images/gallery-workshop-alt.jpg"), label: "Творческий процесс", alt: "Мастер-класс" },
   ];
-  // Deterministic "scattered" offsets/rotations per card — organic but stable
-  // between renders (no layout shift, no hydration mismatch).
+  // Deterministic "scattered" offsets/rotations per card — organic but stable between renders.
   const scatter = [
     { y: 0, r: -1.8 },
     { y: 34, r: 1.2 },
@@ -703,35 +935,29 @@ function Gallery() {
     { y: -12, r: -1 },
   ];
   return (
-    <section id="gallery" style={{ padding: "100px 28px 120px", background: COLORS.ivoryDeep }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-        <Eyebrow>Галерея</Eyebrow>
-        <SectionTitle>Атмосферу невозможно забронировать отдельно</SectionTitle>
-        <Divider />
-        <div
-          style={{
-            marginTop: 50,
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 34,
-          }}
-          className="oro-gallery-grid"
-        >
-          {photos.map((p, i) => (
-            <div
-              key={p.src}
-              className="oro-gallery-item"
-              style={{ "--gy": `${scatter[i % scatter.length].y}px`, "--gr": `${scatter[i % scatter.length].r}deg` }}
-            >
-              <Photo src={p.src} alt={p.alt} label={p.label} ratio="4 / 5" />
-            </div>
-          ))}
-        </div>
+    <Section id="gallery" bg={COLORS.ivoryDeep} padding="100px 28px 120px">
+      <Eyebrow>Галерея</Eyebrow>
+      <SectionTitle>Посмотрите, как здесь бывает</SectionTitle>
+      <Divider />
+      <Lead>Живые люди. Настоящие встречи. Разные поводы. Одно пространство.</Lead>
+      <div
+        style={{ marginTop: 44, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 34 }}
+        className="oro-gallery-grid"
+      >
+        {photos.map((p, i) => (
+          <div
+            key={p.src}
+            className="oro-gallery-item"
+            style={{ "--gy": `${scatter[i % scatter.length].y}px`, "--gr": `${scatter[i % scatter.length].r}deg` }}
+          >
+            <Photo src={p.src} alt={p.alt} label={p.label} ratio="4 / 5" />
+          </div>
+        ))}
       </div>
       <style>{`
         .oro-gallery-item {
           transform: translateY(var(--gy)) rotate(var(--gr));
-          transition: transform .4s ease, filter .4s ease;
+          transition: transform .4s ease;
         }
         .oro-gallery-item:hover {
           transform: translateY(calc(var(--gy) - 8px)) rotate(0deg) scale(1.03);
@@ -746,200 +972,176 @@ function Gallery() {
           .oro-gallery-item { transform: none !important; }
         }
       `}</style>
-    </section>
+    </Section>
   );
 }
 
 /* ---------------------------------------------------------
-   PRICING
+   PRICING + ЧТО ВЫ ПОЛУЧАЕТЕ
 --------------------------------------------------------- */
 function Pricing() {
   const tiers = [
-    { title: "Индивидуальные встречи", sub: "1–2 человека", price: "20", },
-    { title: "Мероприятия", sub: "3–10 человек", price: "30", featured: true },
-    { title: "Мероприятия", sub: "11–15 человек", price: "40" },
+    { title: "Индивидуальная работа", sub: "1–2 человека", price: "20", note: "Консультации и встречи" },
+    { title: "Групповые мероприятия", sub: "3–10 человек", price: "30", featured: true },
+    { title: "Групповые мероприятия", sub: "11–15 человек", price: "40" },
   ];
-  return (
-    <section id="pricing" style={{ padding: "100px 28px", background: COLORS.ivory }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-        <Eyebrow>Стоимость</Eyebrow>
-        <SectionTitle>Прозрачная цена — без сюрпризов</SectionTitle>
-        <Divider />
+  const included = [
+    "Уютное готовое пространство и удобная мебель",
+    "Красивые фотозоны",
+    "Кофе, чай, молоко и лёгкие угощения",
+    "Мероприятия до 15 человек",
+    "Удобное расположение в самом сердце города",
+  ];
+  const equipment = [
+    { icon: Wifi, text: "Хороший Wi-Fi" },
+    { icon: Tv, text: "Телевизор с подключением ноутбука" },
+    { icon: Sparkles, text: "Bluetooth-колонка JBL" },
+    { icon: Coffee, text: "Кофемашина и капучинатор" },
+    { icon: Refrigerator, text: "Мини-холодильник, кулер с горячей и холодной водой" },
+    { icon: Users, text: "Обеденная группа и сервиз на 15 персон" },
+    { icon: Sparkles, text: "Бокалы для вина и шампанского, канцелярия" },
+  ];
+  const floor = ["Духовой шкаф", "Посудомоечная машина", "Микроволновая печь"];
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginTop: 44 }} className="oro-pricing-grid">
-          {tiers.map((t) => (
-            <Card
-              key={t.title + t.sub}
-              style={
-                t.featured
-                  ? { background: COLORS.oliveDark, border: "none" }
-                  : {}
-              }
+  return (
+    <Section id="pricing">
+      <Eyebrow>Аренда студии</Eyebrow>
+      <SectionTitle>Прозрачная цена — без сюрпризов</SectionTitle>
+      <Divider />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginTop: 40 }} className="oro-three-col">
+        {tiers.map((t) => (
+          <Card key={t.sub} style={t.featured ? { background: COLORS.oliveDark, border: "none" } : {}}>
+            <p
+              style={{
+                fontFamily: SANS,
+                fontSize: 12,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: t.featured ? COLORS.goldLight : COLORS.oliveSoft,
+                margin: "0 0 6px",
+              }}
             >
-              <p
-                style={{
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontSize: 12,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: t.featured ? COLORS.goldLight : COLORS.oliveSoft,
-                  margin: "0 0 6px",
-                }}
-              >
-                {t.sub}
-              </p>
-              <h3
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: 24,
-                  color: t.featured ? COLORS.ivoryCard : COLORS.ink,
-                  margin: "0 0 20px",
-                  fontWeight: 500,
-                }}
-              >
-                {t.title}
-              </h3>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span
-                  style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    fontSize: 52,
-                    color: t.featured ? COLORS.goldLight : COLORS.olive,
-                    fontWeight: 600,
-                  }}
-                >
-                  €{t.price}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Montserrat', sans-serif",
-                    fontSize: 13,
-                    color: t.featured ? "rgba(251,248,242,0.7)" : COLORS.inkSoft,
-                  }}
-                >
-                  / час
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: 30,
-            display: "flex",
-            gap: 30,
-            flexWrap: "wrap",
-            fontFamily: "'Montserrat', sans-serif",
-            fontSize: 13.5,
-            color: COLORS.inkSoft,
-            fontWeight: 300,
-          }}
-        >
-          <span>✦ При бронировании более чем на 5 часов — 1 час в подарок</span>
-          <span>✦ Сервис уборки (при необходимости) — €20, оплачивается отдельно</span>
-        </div>
+              {t.sub}
+            </p>
+            <h3 style={{ fontFamily: SERIF, fontSize: 24, color: t.featured ? COLORS.ivoryCard : COLORS.ink, margin: "0 0 18px", fontWeight: 500 }}>
+              {t.title}
+            </h3>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span style={{ fontFamily: SERIF, fontSize: 52, color: t.featured ? COLORS.goldLight : COLORS.olive, fontWeight: 600 }}>
+                €{t.price}
+              </span>
+              <span style={{ fontFamily: SANS, fontSize: 13, color: t.featured ? "rgba(251,248,242,0.7)" : COLORS.inkSoft }}>/ час</span>
+            </div>
+            {t.note && (
+              <p style={{ fontFamily: SANS, fontSize: 13, color: COLORS.inkSoft, fontWeight: 300, margin: "8px 0 0" }}>{t.note}</p>
+            )}
+          </Card>
+        ))}
       </div>
 
-      <style>{`
-        @media (max-width: 860px) {
-          .oro-pricing-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </section>
+      <div
+        style={{
+          marginTop: 26,
+          display: "flex",
+          gap: 30,
+          flexWrap: "wrap",
+          alignItems: "center",
+          fontFamily: SANS,
+          fontSize: 13.5,
+          color: COLORS.inkSoft,
+          fontWeight: 300,
+        }}
+      >
+        <span>✦ Сервис уборки (при необходимости) — €20, оплачивается отдельно</span>
+        <span>
+          ✦ Планируете регулярные мероприятия?{" "}
+          <a href={WA_REGULAR} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.oliveDark, fontWeight: 500 }}>
+            Напишите нам
+          </a>{" "}
+          — обсудим удобный вариант
+        </span>
+      </div>
+
+      {/* Что вы получаете */}
+      <div style={{ marginTop: 70, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }} className="oro-two-col">
+        <Card>
+          <CardTitle>Что вы получаете в студии</CardTitle>
+          <BulletList items={included} />
+          <p style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 20, color: COLORS.olive, margin: "24px 0 0", lineHeight: 1.4 }}>
+            Вам не нужно начинать с пустой комнаты — просто приходите и создавайте своё мероприятие.
+          </p>
+        </Card>
+
+        <Card>
+          <details className="oro-details">
+            <summary>
+              <span style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 500, color: COLORS.olive }}>Подробнее об оснащении</span>
+              <ChevronDown size={18} color={COLORS.oliveDark} className="oro-chevron" />
+            </summary>
+            <div style={{ display: "flex", flexDirection: "column", gap: 13, marginTop: 18 }}>
+              {equipment.map(({ icon: Icon, text }) => (
+                <div key={text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <Icon size={17} color={COLORS.gold} strokeWidth={1.5} style={{ flex: "0 0 auto" }} />
+                  <span style={{ fontFamily: SANS, fontSize: 14, color: COLORS.ink, fontWeight: 300 }}>{text}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontFamily: SANS, fontSize: 13, color: COLORS.inkSoft, fontWeight: 300, margin: "22px 0 12px" }}>
+              На этаже, по согласованию при бронировании:
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {floor.map((t) => (
+                <span
+                  key={t}
+                  style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.oliveDark, background: COLORS.ivoryDeep, padding: "8px 14px", borderRadius: 20 }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </details>
+        </Card>
+      </div>
+
+      <div style={{ marginTop: 40 }}>
+        <Button href="#booking">Посмотреть календарь</Button>
+      </div>
+    </Section>
   );
 }
 
 /* ---------------------------------------------------------
-   RULES
---------------------------------------------------------- */
-function Rules() {
-  const rules = [
-    {
-      title: "Правила пространства",
-      body: [
-        "Курение, включая вейпы, и использование наркотических веществ строго запрещено.",
-        "Мероприятия с алкогольными напитками необходимо согласовывать при бронировании.",
-        "Студия должна оставаться в чистом состоянии, как и до бронирования. За уборку несёт ответственность организатор мероприятия.",
-      ],
-    },
-    {
-      title: "Детали по времени",
-      body: [
-        "Можно прийти пораньше и/или задержаться без доплат.",
-        "Для индивидуального использования — до 15 минут.",
-        "Для мероприятий — до 30 минут.",
-      ],
-    },
-    {
-      title: "Продление и отмена",
-      body: [
-        "За 3 суток вы подтверждаете бронирование студии, после чего мы высылаем счёт на оплату.",
-        "В случае задержки более чем на 15 минут (для индивидуального использования) и более чем на 30 минут (для мероприятий) — оплачивается следующий час.",
-      ],
-    },
-  ];
-  return (
-    <section id="rules" style={{ padding: "100px 28px", background: COLORS.ivoryDeep }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-        <Eyebrow>Правила</Eyebrow>
-        <SectionTitle>Немного деталей для комфорта всех</SectionTitle>
-        <Divider />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginTop: 44 }} className="oro-rules-grid">
-          {rules.map((r) => (
-            <Card key={r.title}>
-              <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: COLORS.olive, margin: "0 0 16px" }}>
-                {r.title}
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {r.body.map((b, i) => (
-                  <p
-                    key={i}
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: 13.5,
-                      lineHeight: 1.7,
-                      color: COLORS.inkSoft,
-                      margin: 0,
-                      fontWeight: 300,
-                    }}
-                  >
-                    {b}
-                  </p>
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-      <style>{`
-        @media (max-width: 860px) {
-          .oro-rules-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </section>
-  );
-}
-
-/* ---------------------------------------------------------
-   BOOKING — mock Google Calendar style picker
-   (placeholder: real integration will replace this flow;
-   here we simulate the "book -> email confirmation" idea)
+   BOOKING — демо-календарь (тестовая версия, заявки пока никуда не отправляются)
 --------------------------------------------------------- */
 const MONTH_NAMES = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
   "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
 ];
+const MONTH_GENITIVE = [
+  "января", "февраля", "марта", "апреля", "мая", "июня",
+  "июля", "августа", "сентября", "октября", "ноября", "декабря",
+];
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const TIME_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
 const STUDIO_CLOSE_HOUR = 20; // last booking must end by this hour
-const PRICE_PER_HOUR = { "1–2 человека": 20, "3–10 человек": 30, "11–15 человек": 40 };
 const DURATIONS = [1, 2, 3, 4, 5, 6, 7, 8];
+const EVENT_TYPES = [
+  "Индивидуальная работа",
+  "Групповое мероприятие",
+  "Мастер-класс",
+  "День рождения",
+  "Девичник",
+  "Трансформационная игра",
+  "Другое",
+];
+
+const hoursWord = (n) => (n === 1 ? "час" : n < 5 ? "часа" : "часов");
+const pricePerHourFor = (guests) => (guests <= 2 ? 20 : guests <= 10 ? 30 : 40);
 
 function addHours(time, hours) {
   const [h, m] = time.split(":").map(Number);
-  const end = h + hours;
-  return `${String(end).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return `${String(h + hours).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function maxDurationFrom(time) {
@@ -957,22 +1159,30 @@ function buildCalendar(year, month) {
   return cells;
 }
 
+const EMPTY_FORM = { type: EVENT_TYPES[0], guests: 2, name: "", contact: "", comment: "" };
+
 function Booking() {
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [duration, setDuration] = useState(1);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", guests: "1–2 человека" });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const isToday =
+    selectedDay === today.getDate() && cursor.month === today.getMonth() && cursor.year === today.getFullYear();
+  const slotPassed = (t) => isToday && Number(t.split(":")[0]) <= today.getHours();
+
   const maxDuration = selectedTime ? maxDurationFrom(selectedTime) : DURATIONS.length;
   const endTime = selectedTime ? addHours(selectedTime, duration) : null;
-  const pricePerHour = PRICE_PER_HOUR[form.guests] ?? 20;
+  const guests = Math.min(15, Math.max(1, Number(form.guests) || 1));
+  const pricePerHour = pricePerHourFor(guests);
   const totalPrice = pricePerHour * duration;
 
   const cells = useMemo(() => buildCalendar(cursor.year, cursor.month), [cursor]);
+  const atCurrentMonth = cursor.year === today.getFullYear() && cursor.month === today.getMonth();
 
   const isPast = (d) => {
     if (!d) return false;
@@ -992,23 +1202,29 @@ function Booking() {
     setDuration(1);
   };
 
-  const canSubmit = selectedDay && selectedTime && form.name && form.email;
+  const canSubmit = selectedDay && selectedTime && form.name.trim() && form.contact.trim();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
-    // Placeholder: this is where a real Google Calendar booking
-    // + confirmation-email call would happen.
+    // Тестовая версия: здесь позже будет реальная отправка заявки
+    // (Google Calendar / email / WhatsApp).
     setTimeout(() => {
       setSubmitting(false);
       setConfirmed(true);
     }, 900);
   };
 
-  const dateLabel = selectedDay
-    ? `${selectedDay} ${MONTH_NAMES[cursor.month].toLowerCase()} ${cursor.year}`
-    : null;
+  const dateLabel = selectedDay ? `${selectedDay} ${MONTH_GENITIVE[cursor.month]} ${cursor.year}` : null;
+
+  const reset = () => {
+    setConfirmed(false);
+    setSelectedDay(null);
+    setSelectedTime(null);
+    setDuration(1);
+    setForm(EMPTY_FORM);
+  };
 
   if (confirmed) {
     return (
@@ -1029,49 +1245,23 @@ function Booking() {
             >
               <Check size={28} color={COLORS.olive} />
             </div>
-            <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, color: COLORS.ink, margin: "0 0 10px" }}>
-              Бронирование почти готово
+            <h3 style={{ fontFamily: SERIF, fontSize: 28, color: COLORS.ink, margin: "0 0 10px", fontWeight: 500 }}>
+              Спасибо, {form.name}! Заявка отправлена
             </h3>
-            <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 14, color: COLORS.inkSoft, lineHeight: 1.7, fontWeight: 300 }}>
-              Вы выбрали <strong style={{ color: COLORS.olive }}>{dateLabel}, {selectedTime}–{endTime}</strong>{" "}
-              ({duration} {duration === 1 ? "час" : duration < 5 ? "часа" : "часов"}, €{totalPrice}).
-              Письмо с подтверждением и деталями оплаты отправлено на <strong>{form.email}</strong>.
+            <p style={{ fontFamily: SANS, fontSize: 14, color: COLORS.inkSoft, lineHeight: 1.7, fontWeight: 300 }}>
+              <strong style={{ color: COLORS.olive }}>
+                {form.type} · {dateLabel}, {selectedTime}–{endTime}
+              </strong>
+              <br />
+              {guests} {guests === 1 ? "гость" : guests < 5 ? "гостя" : "гостей"} · {duration} {hoursWord(duration)}
+              <br />
+              Мы свяжемся с вами ({form.contact}), чтобы подтвердить бронирование и прислать счёт.
             </p>
-
-            <div
-              style={{
-                marginTop: 26,
-                textAlign: "left",
-                background: COLORS.ivoryDeep,
-                borderRadius: 14,
-                padding: "18px 20px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <Mail size={15} color={COLORS.gold} />
-                <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12, color: COLORS.oliveDark, letterSpacing: "0.04em" }}>
-                  ПРЕДПРОСМОТР ПИСЬМА
-                </span>
-              </div>
-              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, color: COLORS.ink, margin: "0 0 6px" }}>
-                Здравствуйте, {form.name}! Ваша бронь в ORO studio подтверждена.
-              </p>
-              <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12.5, color: COLORS.inkSoft, margin: 0, fontWeight: 300 }}>
-                {dateLabel} · {selectedTime}–{endTime} · {form.guests} · €{totalPrice}
-              </p>
-            </div>
-
             <button
-              onClick={() => {
-                setConfirmed(false);
-                setSelectedDay(null);
-                setSelectedTime(null);
-                setDuration(1);
-                setForm({ name: "", email: "", phone: "", guests: "1–2 человека" });
-              }}
+              onClick={reset}
               style={{
-                marginTop: 26,
-                fontFamily: "'Montserrat', sans-serif",
+                marginTop: 22,
+                fontFamily: SANS,
                 fontSize: 13,
                 color: COLORS.oliveDark,
                 background: "none",
@@ -1081,7 +1271,7 @@ function Booking() {
                 cursor: "pointer",
               }}
             >
-              Забронировать ещё раз
+              Отправить ещё одну заявку
             </button>
           </Card>
         </div>
@@ -1089,74 +1279,94 @@ function Booking() {
     );
   }
 
+  const label = (text) => (
+    <span style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, display: "block", marginBottom: 6 }}>{text}</span>
+  );
+
   return (
-    <section id="booking" style={{ padding: "100px 28px", background: COLORS.olive, position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: -100, right: -100, pointerEvents: "none" }}>
-        <FlowerOfLife size={380} opacity={0.1} color={COLORS.ivoryCard} />
-      </div>
-      <div style={{ maxWidth: 1000, margin: "0 auto", position: "relative" }}>
-        <Eyebrow>Бронирование</Eyebrow>
-        <SectionTitle light>Выберите дату и время</SectionTitle>
-        <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13.5, color: "rgba(251,248,242,0.75)", marginTop: 10, fontWeight: 300 }}>
-          Демонстрационный календарь — синхронизация с Google Calendar появится здесь после подключения.
-        </p>
+    <Section
+      id="booking"
+      bg={COLORS.olive}
+      maxWidth={1040}
+      ornament={
+        <div style={{ position: "absolute", top: -100, right: -100, pointerEvents: "none" }}>
+          <FlowerOfLife size={380} opacity={0.1} color={COLORS.ivoryCard} />
+        </div>
+      }
+    >
+      <Eyebrow light>Календарь</Eyebrow>
+      <SectionTitle light>Выберите дату</SectionTitle>
+      <Lead light style={{ marginTop: 12 }}>
+        Посмотрите свободные даты, выберите время и расскажите немного о вашей встрече.
+      </Lead>
 
-        <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 24 }} className="oro-booking-grid">
-          <Card>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <button onClick={() => changeMonth(-1)} style={iconBtnStyle}>
-                <ChevronLeft size={18} color={COLORS.oliveDark} />
-              </button>
-              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: COLORS.ink }}>
-                {MONTH_NAMES[cursor.month]} {cursor.year}
-              </span>
-              <button onClick={() => changeMonth(1)} style={iconBtnStyle}>
-                <ChevronRight size={18} color={COLORS.oliveDark} />
-              </button>
-            </div>
+      <div style={{ marginTop: 34, display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 24 }} className="oro-booking-grid">
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+            <button
+              onClick={() => changeMonth(-1)}
+              disabled={atCurrentMonth}
+              aria-label="Предыдущий месяц"
+              style={{ ...iconBtnStyle, opacity: atCurrentMonth ? 0.35 : 1, cursor: atCurrentMonth ? "default" : "pointer" }}
+            >
+              <ChevronLeft size={18} color={COLORS.oliveDark} />
+            </button>
+            <span style={{ fontFamily: SERIF, fontSize: 20, color: COLORS.ink }}>
+              {MONTH_NAMES[cursor.month]} {cursor.year}
+            </span>
+            <button onClick={() => changeMonth(1)} aria-label="Следующий месяц" style={iconBtnStyle}>
+              <ChevronRight size={18} color={COLORS.oliveDark} />
+            </button>
+          </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 6 }}>
-              {WEEKDAYS.map((w) => (
-                <div key={w} style={{ textAlign: "center", fontFamily: "'Montserrat', sans-serif", fontSize: 11, color: COLORS.oliveSoft }}>
-                  {w}
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
-              {cells.map((d, i) => {
-                const disabled = !d || isPast(d);
-                const active = d === selectedDay;
-                return (
-                  <button
-                    key={i}
-                    disabled={disabled}
-                    onClick={() => { setSelectedDay(d); setSelectedTime(null); setDuration(1); }}
-                    style={{
-                      aspectRatio: "1",
-                      borderRadius: 10,
-                      border: "none",
-                      background: active ? COLORS.oliveDark : d ? COLORS.ivoryDeep : "transparent",
-                      color: active ? COLORS.ivoryCard : disabled ? "rgba(58,52,40,0.25)" : COLORS.ink,
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: 13,
-                      cursor: disabled ? "default" : "pointer",
-                    }}
-                  >
-                    {d || ""}
-                  </button>
-                );
-              })}
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 6 }}>
+            {WEEKDAYS.map((w) => (
+              <div key={w} style={{ textAlign: "center", fontFamily: SANS, fontSize: 11, color: COLORS.oliveSoft }}>
+                {w}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
+            {cells.map((d, i) => {
+              const disabled = !d || isPast(d);
+              const active = d === selectedDay;
+              return (
+                <button
+                  key={i}
+                  disabled={disabled}
+                  onClick={() => {
+                    setSelectedDay(d);
+                    setSelectedTime(null);
+                    setDuration(1);
+                  }}
+                  style={{
+                    aspectRatio: "1",
+                    borderRadius: 10,
+                    border: "none",
+                    background: active ? COLORS.oliveDark : d ? COLORS.ivoryDeep : "transparent",
+                    color: active ? COLORS.ivoryCard : disabled ? "rgba(58,52,40,0.25)" : COLORS.ink,
+                    fontFamily: SANS,
+                    fontSize: 13,
+                    cursor: disabled ? "default" : "pointer",
+                  }}
+                >
+                  {d || ""}
+                </button>
+              );
+            })}
+          </div>
 
-            {selectedDay && (
-              <div style={{ marginTop: 20 }}>
-                <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>
-                  Свободное время на {dateLabel}
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {TIME_SLOTS.map((t) => (
+          {selectedDay && (
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>Свободное время на {dateLabel}</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {TIME_SLOTS.map((t) => {
+                  const passed = slotPassed(t);
+                  const active = t === selectedTime;
+                  return (
                     <button
                       key={t}
+                      disabled={passed}
                       onClick={() => {
                         setSelectedTime(t);
                         setDuration((d) => Math.min(d, maxDurationFrom(t)));
@@ -1164,143 +1374,151 @@ function Booking() {
                       style={{
                         padding: "8px 14px",
                         borderRadius: 20,
-                        border: `1px solid ${t === selectedTime ? COLORS.oliveDark : "rgba(111,122,86,0.3)"}`,
-                        background: t === selectedTime ? COLORS.oliveDark : "transparent",
-                        color: t === selectedTime ? COLORS.ivoryCard : COLORS.ink,
-                        fontFamily: "'Montserrat', sans-serif",
+                        border: `1px solid ${active ? COLORS.oliveDark : "rgba(111,122,86,0.3)"}`,
+                        background: active ? COLORS.oliveDark : "transparent",
+                        color: active ? COLORS.ivoryCard : passed ? "rgba(58,52,40,0.25)" : COLORS.ink,
+                        fontFamily: SANS,
                         fontSize: 12.5,
-                        cursor: "pointer",
+                        cursor: passed ? "default" : "pointer",
                       }}
                     >
                       {t}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
+          )}
 
-            {selectedDay && selectedTime && (
-              <div style={{ marginTop: 20 }}>
-                <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>
-                  Сколько часов вам нужно?
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {DURATIONS.filter((h) => h <= maxDuration).map((h) => (
-                    <button
-                      key={h}
-                      onClick={() => setDuration(h)}
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        border: `1px solid ${h === duration ? COLORS.oliveDark : "rgba(111,122,86,0.3)"}`,
-                        background: h === duration ? COLORS.oliveDark : "transparent",
-                        color: h === duration ? COLORS.ivoryCard : COLORS.ink,
-                        fontFamily: "'Montserrat', sans-serif",
-                        fontSize: 13,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {h}
-                    </button>
-                  ))}
-                </div>
-                <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12.5, color: COLORS.inkSoft, marginTop: 10 }}>
-                  {selectedTime}–{endTime} · {duration} {duration === 1 ? "час" : duration < 5 ? "часа" : "часов"}
-                </p>
+          {selectedDay && selectedTime && (
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>Продолжительность, часов</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {DURATIONS.filter((h) => h <= maxDuration).map((h) => (
+                  <button
+                    key={h}
+                    onClick={() => setDuration(h)}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      border: `1px solid ${h === duration ? COLORS.oliveDark : "rgba(111,122,86,0.3)"}`,
+                      background: h === duration ? COLORS.oliveDark : "transparent",
+                      color: h === duration ? COLORS.ivoryCard : COLORS.ink,
+                      fontFamily: SANS,
+                      fontSize: 13,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {h}
+                  </button>
+                ))}
               </div>
-            )}
-          </Card>
+              <p style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.inkSoft, marginTop: 10 }}>
+                {selectedTime}–{endTime} · {duration} {hoursWord(duration)}
+              </p>
+            </div>
+          )}
+        </Card>
 
-          <Card>
-            <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: COLORS.ink, margin: "0 0 18px" }}>
-              Ваши данные
-            </h3>
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Card>
+          <CardTitle color={COLORS.ink} size={22}>
+            Расскажите немного о вашей встрече
+          </CardTitle>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <label>
+              {label("Что вы хотите провести?")}
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={inputStyle}>
+                {EVENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {label("Количество гостей (до 15)")}
               <input
-                placeholder="Имя"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                style={inputStyle}
-              />
-              <input
-                type="email"
-                placeholder="Email для подтверждения"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                style={inputStyle}
-              />
-              <input
-                placeholder="Телефон (необязательно)"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                style={inputStyle}
-              />
-              <select
+                type="number"
+                min={1}
+                max={15}
                 value={form.guests}
                 onChange={(e) => setForm({ ...form, guests: e.target.value })}
                 style={inputStyle}
-              >
-                <option value="1–2 человека">1–2 человека — €20/час</option>
-                <option value="3–10 человек">3–10 человек — €30/час</option>
-                <option value="11–15 человек">11–15 человек — €40/час</option>
-              </select>
+              />
+            </label>
+            <input
+              placeholder="Ваше имя"
+              aria-label="Ваше имя"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              style={inputStyle}
+            />
+            <input
+              placeholder="Телефон / удобный способ связи"
+              aria-label="Телефон или удобный способ связи"
+              value={form.contact}
+              onChange={(e) => setForm({ ...form, contact: e.target.value })}
+              style={inputStyle}
+            />
+            <textarea
+              placeholder="Комментарий"
+              aria-label="Комментарий"
+              rows={3}
+              value={form.comment}
+              onChange={(e) => setForm({ ...form, comment: e.target.value })}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: SANS }}
+            />
 
-              <div
-                style={{
-                  marginTop: 4,
-                  padding: "12px 14px",
-                  background: COLORS.ivoryDeep,
-                  borderRadius: 10,
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontSize: 12.5,
-                  color: COLORS.oliveDark,
-                }}
-              >
-                {selectedDay && selectedTime ? (
-                  <>
-                    Выбрано: {dateLabel}, {selectedTime}–{endTime} ({duration}{" "}
-                    {duration === 1 ? "час" : duration < 5 ? "часа" : "часов"})
-                    <br />
-                    Итого: <strong>€{totalPrice}</strong> (€{pricePerHour}/час × {duration})
-                  </>
-                ) : (
-                  "Выберите дату и время слева"
-                )}
-              </div>
+            <div
+              style={{
+                padding: "12px 14px",
+                background: COLORS.ivoryDeep,
+                borderRadius: 10,
+                fontFamily: SANS,
+                fontSize: 12.5,
+                lineHeight: 1.6,
+                color: COLORS.oliveDark,
+              }}
+            >
+              {selectedDay && selectedTime ? (
+                <>
+                  Желаемая дата: {dateLabel}, {selectedTime}–{endTime}
+                  <br />
+                  Аренда: <strong>€{totalPrice}</strong> (€{pricePerHour}/час × {duration})
+                  {(form.type === "День рождения" || form.type === "Девичник") && (
+                    <>
+                      <br />
+                      Программа под ключ рассчитывается отдельно.
+                    </>
+                  )}
+                </>
+              ) : (
+                "Выберите дату и время в календаре"
+              )}
+            </div>
 
-              <button
-                type="submit"
-                disabled={!canSubmit || submitting}
-                style={{
-                  marginTop: 6,
-                  padding: "14px 20px",
-                  borderRadius: 30,
-                  border: "none",
-                  background: canSubmit ? COLORS.oliveDark : "rgba(111,122,86,0.35)",
-                  color: COLORS.ivoryCard,
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontSize: 14,
-                  cursor: canSubmit ? "pointer" : "default",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
-              >
-                {submitting ? "Отправляем..." : "Подтвердить бронирование"}
-              </button>
-            </form>
-          </Card>
-        </div>
+            <button
+              type="submit"
+              disabled={!canSubmit || submitting}
+              style={{
+                marginTop: 4,
+                padding: "14px 20px",
+                borderRadius: 30,
+                border: "none",
+                background: canSubmit ? COLORS.oliveDark : "rgba(111,122,86,0.35)",
+                color: COLORS.ivoryCard,
+                fontFamily: SANS,
+                fontSize: 14,
+                cursor: canSubmit ? "pointer" : "default",
+              }}
+            >
+              {submitting ? "Отправляем..." : "Забронировать"}
+            </button>
+          </form>
+        </Card>
       </div>
-
-      <style>{`
-        @media (max-width: 860px) {
-          .oro-booking-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </section>
+    </Section>
   );
 }
 
@@ -1317,25 +1535,139 @@ const iconBtnStyle = {
 };
 
 const inputStyle = {
+  width: "100%",
   padding: "13px 16px",
   borderRadius: 10,
   border: "1px solid rgba(111,122,86,0.28)",
   background: COLORS.ivory,
-  fontFamily: "'Montserrat', sans-serif",
+  fontFamily: SANS,
   fontSize: 13.5,
   color: COLORS.ink,
   outline: "none",
 };
 
 /* ---------------------------------------------------------
+   FAQ — правила + подбор формата
+--------------------------------------------------------- */
+function Faq() {
+  const items = [
+    {
+      q: "Как подтвердить бронирование?",
+      a: "За 3 суток до мероприятия вы подтверждаете бронь, после чего мы высылаем счёт на оплату.",
+    },
+    {
+      q: "Можно прийти пораньше или задержаться?",
+      a: "Да, без доплаты: до 15 минут для индивидуальной работы и до 30 минут для мероприятий. Если задержка больше — оплачивается следующий час.",
+    },
+    {
+      q: "Кто убирает после мероприятия?",
+      a: "Студия должна остаться в том же виде, что и до бронирования — за это отвечает организатор. Если не хочется убирать самим, закажите сервис уборки за €20.",
+    },
+    {
+      q: "Можно ли алкоголь?",
+      a: "Мероприятия с алкоголем согласовываются при бронировании. Курение, включая вейпы, и наркотические вещества в студии запрещены.",
+    },
+    {
+      q: "Можно ли проводить мероприятия регулярно?",
+      a: "Да. Если вы хотите стать постоянным клиентом студии, напишите нам — обсудим удобный формат сотрудничества.",
+    },
+  ];
+  return (
+    <Section id="faq" bg={COLORS.ivoryDeep}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.25fr 0.75fr", gap: 40, alignItems: "start" }} className="oro-two-col">
+        <div>
+          <Eyebrow>Полезно знать</Eyebrow>
+          <SectionTitle>Частые вопросы</SectionTitle>
+          <Divider />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
+            {items.map(({ q, a }) => (
+              <details key={q} className="oro-details oro-faq">
+                <summary>
+                  <span style={{ fontFamily: SANS, fontSize: 15, fontWeight: 500, color: COLORS.ink }}>{q}</span>
+                  <ChevronDown size={18} color={COLORS.oliveDark} className="oro-chevron" />
+                </summary>
+                <p style={{ fontFamily: SANS, fontSize: 14, lineHeight: 1.75, color: COLORS.inkSoft, fontWeight: 300, margin: "12px 0 0" }}>{a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+
+        <Card style={{ background: COLORS.oliveDark, border: "none", marginTop: 8 }}>
+          <CardTitle color={COLORS.ivoryCard} size={26}>
+            Не знаете, какой формат выбрать?
+          </CardTitle>
+          <p style={{ fontFamily: SANS, fontSize: 14, lineHeight: 1.75, color: "rgba(251,248,242,0.82)", fontWeight: 300, margin: "0 0 24px" }}>
+            Расскажите, что хотите отметить или провести, сколько будет гостей и какое настроение хочется создать —
+            поможем подобрать формат.
+          </p>
+          <Button href={WA_FORMAT} light external>
+            Подобрать формат
+          </Button>
+        </Card>
+      </div>
+    </Section>
+  );
+}
+
+/* ---------------------------------------------------------
+   FINAL CTA
+--------------------------------------------------------- */
+function FinalCta() {
+  return (
+    <Section
+      id="final"
+      padding="110px 28px"
+      maxWidth={820}
+      ornament={
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", pointerEvents: "none" }}>
+          <FlowerOfLife size={520} opacity={0.08} />
+        </div>
+      }
+    >
+      <div style={{ textAlign: "center" }}>
+        <Eyebrow>Здесь всегда что-то происходит</Eyebrow>
+        <p style={{ fontFamily: SANS, fontSize: 15, lineHeight: 1.8, color: COLORS.inkSoft, fontWeight: 300, margin: "0 auto 26px", maxWidth: 560 }}>
+          Сегодня — консультация, завтра — женская встреча, в выходные — день рождения или девичник. ORO Studio каждый
+          раз становится особенной благодаря людям, которые сюда приходят.
+        </p>
+        <h2
+          style={{
+            fontFamily: SERIF,
+            fontWeight: 500,
+            fontSize: "clamp(32px, 4.6vw, 52px)",
+            lineHeight: 1.12,
+            color: COLORS.ink,
+            margin: "0 0 18px",
+          }}
+        >
+          Ваш следующий красивый вечер <span style={{ color: COLORS.olive, fontStyle: "italic" }}>может начаться здесь</span>
+        </h2>
+        <p style={{ fontFamily: SANS, fontSize: 15, lineHeight: 1.7, color: COLORS.inkSoft, fontWeight: 300, margin: "0 auto 34px", maxWidth: 520 }}>
+          Выберите дату, расскажите о своей идее — и мы поможем превратить её в настоящее событие.
+        </p>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
+          <Button href="#booking">Забронировать студию</Button>
+          <Button href="#booking" variant="secondary">
+            Посмотреть календарь
+          </Button>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+/* ---------------------------------------------------------
    FOOTER
 --------------------------------------------------------- */
 function Footer() {
   const social = [
-    { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/oro_studio_tln?igsh=MW5lNzJoM3lmYmd1Yg==" },
-    { icon: Facebook, label: "Facebook", href: "https://www.facebook.com/share/1DtTPKb5Eu/?mibextid=wwXIfr" },
+    { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/oro_studio_tln" },
+    { icon: Phone, label: "WhatsApp", href: `https://wa.me/${PHONE_RAW}` },
     { icon: Send, label: "Telegram", href: "https://t.me/oro_studio_tallinn" },
+    { icon: Facebook, label: "Facebook", href: "https://www.facebook.com/share/1DtTPKb5Eu/" },
   ];
+  const row = { display: "flex", alignItems: "center", gap: 10, marginBottom: 10 };
+  const text = { fontFamily: SANS, fontSize: 13.5, color: "rgba(251,248,242,0.8)", fontWeight: 300, textDecoration: "none" };
   return (
     <footer style={{ background: COLORS.ink, padding: "60px 28px 30px" }}>
       <div
@@ -1354,51 +1686,69 @@ function Footer() {
           <div style={{ marginBottom: 14 }}>
             <Logo size={24} oroColor={COLORS.goldLight} studioColor={COLORS.ivoryDeep} />
           </div>
-          <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13, color: "rgba(251,248,242,0.6)", lineHeight: 1.8, fontWeight: 300, maxWidth: 280 }}>
-            Пространство состояния в центре Таллина. Про мягкость вместо напряжения.
+          <p style={{ fontFamily: SANS, fontSize: 13, color: "rgba(251,248,242,0.6)", lineHeight: 1.8, fontWeight: 300, maxWidth: 280, margin: "0 0 20px" }}>
+            Пространство для встреч, мероприятий и красивых событий.
           </p>
+          <a
+            href="#booking"
+            style={{
+              fontFamily: SANS,
+              fontSize: 13,
+              color: COLORS.ink,
+              background: COLORS.goldLight,
+              padding: "11px 24px",
+              borderRadius: 30,
+              textDecoration: "none",
+              display: "inline-block",
+            }}
+          >
+            Забронировать
+          </a>
         </div>
 
         <div>
-          <h4 style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, marginBottom: 16 }}>
-            КОНТАКТЫ
-          </h4>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <h4 style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, margin: "0 0 16px", fontWeight: 500 }}>КОНТАКТЫ</h4>
+          <div style={row}>
             <MapPin size={15} color={COLORS.oliveSoft} />
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13.5, color: "rgba(251,248,242,0.8)", fontWeight: 300 }}>
-              Narva mnt 4, Таллин, Эстония
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <Mail size={15} color={COLORS.oliveSoft} />
-            <a href="mailto:events@orostudiotallinn.com" style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13.5, color: "rgba(251,248,242,0.8)", fontWeight: 300, textDecoration: "none" }}>
-              events@orostudiotallinn.com
+            <a href="https://maps.google.com/?q=Narva+mnt+4,+Tallinn" target="_blank" rel="noopener noreferrer" style={text}>
+              Narva mnt 4, Таллинн — самое сердце города
             </a>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <div style={row}>
             <Phone size={15} color={COLORS.oliveSoft} />
-            <a href="tel:+37253363795" style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13.5, color: "rgba(251,248,242,0.8)", fontWeight: 300, textDecoration: "none" }}>
-              +372 5336 3795
+            <a href={`https://wa.me/${PHONE_RAW}`} target="_blank" rel="noopener noreferrer" style={text}>
+              WhatsApp: {PHONE_DISPLAY}
             </a>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={row}>
+            <Mail size={15} color={COLORS.oliveSoft} />
+            <a href={`mailto:${EMAIL}`} style={text}>
+              {EMAIL}
+            </a>
+          </div>
+          <div style={row}>
+            <Instagram size={15} color={COLORS.oliveSoft} />
+            <a href="https://www.instagram.com/oro_studio_tln" target="_blank" rel="noopener noreferrer" style={text}>
+              @oro_studio_tln
+            </a>
+          </div>
+          <div style={{ ...row, marginBottom: 0 }}>
             <Clock size={15} color={COLORS.oliveSoft} />
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13.5, color: "rgba(251,248,242,0.8)", fontWeight: 300 }}>
-              Ежедневно, по бронированию
-            </span>
+            <span style={text}>Ежедневно, по бронированию</span>
           </div>
         </div>
 
         <div>
-          <h4 style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, marginBottom: 16 }}>
-            МЫ В СОЦСЕТЯХ
-          </h4>
+          <h4 style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, margin: "0 0 16px", fontWeight: 500 }}>МЫ В СОЦСЕТЯХ</h4>
           <div style={{ display: "flex", gap: 12 }}>
             {social.map(({ icon: Icon, label, href }) => (
               <a
                 key={label}
                 href={href}
                 aria-label={label}
+                title={label}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
                   width: 38,
                   height: 38,
@@ -1418,23 +1768,9 @@ function Footer() {
         </div>
       </div>
 
-      <p
-        style={{
-          fontFamily: "'Montserrat', sans-serif",
-          fontSize: 12,
-          color: "rgba(251,248,242,0.4)",
-          textAlign: "center",
-          marginTop: 26,
-        }}
-      >
-        © {new Date().getFullYear()} ORO studio. Все права защищены.
+      <p style={{ fontFamily: SANS, fontSize: 12, color: "rgba(251,248,242,0.4)", textAlign: "center", margin: "26px 0 0" }}>
+        © {new Date().getFullYear()} ORO Studio. Все права защищены.
       </p>
-
-      <style>{`
-        @media (max-width: 760px) {
-          .oro-footer-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </footer>
   );
 }
@@ -1446,28 +1782,66 @@ export default function App() {
   return (
     <div style={{ background: COLORS.ivory, minHeight: "100vh" }}>
       <style>{`
-        ${FONT_IMPORT}
         * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; scroll-padding-top: 76px; }
         body { margin: 0; }
-        a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+        a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
           outline: 2px solid ${COLORS.gold};
           outline-offset: 2px;
         }
+        .oro-card { transition: transform .35s ease, box-shadow .35s ease; }
+        @media (hover: hover) {
+          .oro-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -14px rgba(58,52,40,0.28) !important; }
+        }
+        .oro-details summary {
+          list-style: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        .oro-details summary::-webkit-details-marker { display: none; }
+        .oro-chevron { flex: 0 0 auto; transition: transform .25s ease; }
+        .oro-details[open] .oro-chevron { transform: rotate(180deg); }
+        .oro-faq {
+          background: ${COLORS.ivoryCard};
+          border: 1px solid rgba(111,122,86,0.14);
+          border-radius: 16px;
+          padding: 18px 22px;
+        }
+        @media (max-width: 1000px) {
+          .oro-four-col { grid-template-columns: repeat(2, 1fr) !important; }
+          .oro-addons { grid-template-columns: 1fr 1fr !important; }
+          .oro-addons > *:last-child { grid-column: 1 / -1; }
+        }
         @media (max-width: 860px) {
-          .oro-hero-grid, .oro-about-grid { grid-template-columns: 1fr !important; }
+          .oro-hero-grid, .oro-about-grid, .oro-two-col, .oro-three-col, .oro-booking-grid { grid-template-columns: 1fr !important; }
           .oro-hero-grid > *:first-child { order: 2; }
           .oro-hero-grid > *:last-child { order: 1; }
+          .oro-about-grid > *:first-child { max-width: 420px; }
+        }
+        @media (max-width: 760px) {
+          .oro-footer-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 560px) {
+          .oro-four-col, .oro-addons { grid-template-columns: 1fr !important; }
         }
       `}</style>
       <Nav />
-      <Hero />
-      <About />
-      <UseCases />
-      <Amenities />
-      <Gallery />
-      <Pricing />
-      <Rules />
-      <Booking />
+      <main>
+        <Hero />
+        <About />
+        <Formats />
+        <Why />
+        <Turnkey />
+        <Occasions />
+        <Gallery />
+        <Pricing />
+        <Booking />
+        <Faq />
+        <FinalCta />
+      </main>
       <Footer />
     </div>
   );
