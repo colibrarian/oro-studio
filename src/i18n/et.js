@@ -65,8 +65,7 @@ const et = {
     titleB: "kokku saada",
     text:
       "Hubane stuudio kohtumisteks, töötubadeks, sünnipäevadeks ja polterõhtuteks. Rendi ruum või telli üritus võtmed kätte – kuni 15 inimest.",
-    photoAlt: "ORO Studio puhkenurk",
-    photoLabel: "Stuudio foto – puhkenurk",
+    logoAlt: "ORO Studio logo",
   },
 
   about: {
@@ -210,15 +209,15 @@ const et = {
     prev: "Eelmine foto",
     next: "Järgmine foto",
     photos: [
-      { label: "Pidu stuudios", alt: "Pidu ORO Studios" },
-      { label: "Meditatiivne ring", alt: "Grupikohtumine" },
-      { label: "Töötuba", alt: "Töötuba stuudios" },
-      { label: "Peo detailid", alt: "Pidulik magustoit" },
-      { label: "Soojad kohtumised", alt: "Stuudio külalised" },
-      { label: "Ruum praktikateks", alt: "Praktika stuudios" },
-      { label: "Vaikuse hetk", alt: "Kohtumine stuudios" },
-      { label: "ORO atmosfäär", alt: "Stuudio külaline" },
-      { label: "Loominguline protsess", alt: "Töötuba" },
+      { label: "Sünnipäev", alt: "Pidulik laud sünnipäeval ORO Studios" },
+      { label: "Kohtumine tee kõrvale", alt: "Külalised stuudios teed joomas" },
+      { label: "Lastepidu", alt: "Lapsed loovtegevusel stuudios" },
+      { label: "Naisteringi kohtumine", alt: "Naisteringi osaleja" },
+      { label: "Konsultatsioon", alt: "Individuaalne konsultatsioon puhkenurgas" },
+      { label: "Palju õnne!", alt: "Sünnipäevalaps koos sõbrannadega" },
+      { label: "Soojad kohtumised", alt: "Lilled ja vahuvein kohtumisel" },
+      { label: "Peo detailid", alt: "Vahuveiniklaasid maasikatega" },
+      { label: "Stuudio ootab külalisi", alt: "Kaetud lauad enne üritust" },
     ],
   },
 

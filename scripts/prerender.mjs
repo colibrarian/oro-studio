@@ -15,7 +15,7 @@ const serverEntry = process.env.SERVER_ENTRY || resolve(root, "dist-server/entry
 const { render, DICTS } = await import(pathToFileURL(serverEntry).href);
 
 const pageUrl = (lang) => `${SITE_URL}/${LANGS.find((l) => l.code === lang).path}`;
-const ogImage = `${SITE_URL}/images/hero-consulting.jpg`;
+const ogImage = `${SITE_URL}/images/brand-flowers.jpg`;
 const esc = (str) =>
   String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // JSON inside <script>: neutralise "</script>" and similar sequences.
@@ -88,7 +88,6 @@ function head(lang) {
     `<meta property="og:description" content="${esc(t.meta.ogDescription)}" />`,
     `<meta property="og:image" content="${ogImage}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
-    `<link rel="preload" as="image" type="image/webp" imagesrcset="${SITE_URL}/images/w/hero-consulting-640.webp 640w, ${SITE_URL}/images/w/hero-consulting-1280.webp 1280w" imagesizes="(max-width: 860px) 100vw, 520px" />`,
     `<script type="application/ld+json">${jsonLd({ "@context": "https://schema.org", "@graph": [business, website, faq] })}</script>`,
   ].join("\n    ");
 }

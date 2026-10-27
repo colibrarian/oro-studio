@@ -243,7 +243,7 @@ const webpSet = (name) => `${asset(`images/w/${name}-640.webp`)} 640w, ${asset(`
 const webpLarge = (name) => asset(`images/w/${name}-1280.webp`);
 
 // Real photo with graceful fallback to the placeholder above if the file is missing.
-// `name` is the file name without extension, e.g. "hero-consulting".
+// `name` is the file name without extension, e.g. "program-candles".
 // Pass `ratio` (e.g. "4 / 5") for a fixed-aspect crop instead of a fixed pixel height.
 // `sizes` tells the browser how wide the photo is shown, so it picks the right WebP.
 function Photo({ name, alt, label, height = 260, ratio, eager = false, sizes = "(max-width: 640px) 80vw, 400px", style = {} }) {
@@ -489,6 +489,51 @@ function Nav() {
 /* ---------------------------------------------------------
    HERO
 --------------------------------------------------------- */
+// Hero visual: the studio logo. Until the real logo file is added, a drawn
+// version of the mark (flower of life + ORO studio) is shown.
+// When the file is ready, put it in public/images/ and set HERO_LOGO, e.g. "images/logo.svg".
+const HERO_LOGO = null;
+
+function HeroBrand({ label }) {
+  if (HERO_LOGO) {
+    return (
+      <div className="oro-hero-brand" style={{ display: "flex", justifyContent: "center" }}>
+        <img src={asset(HERO_LOGO)} alt={label} style={{ width: "100%", maxWidth: 420, height: "auto", display: "block" }} />
+      </div>
+    );
+  }
+  return (
+    <div
+      className="oro-hero-brand"
+      role="img"
+      aria-label={label}
+      style={{ position: "relative", width: "100%", maxWidth: 420, aspectRatio: "1", margin: "0 auto" }}
+    >
+      <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${COLORS.ivoryCard} 0%, ${COLORS.ivoryDeep} 70%)` }} />
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <FlowerOfLife size={420} opacity={0.55} strokeWidth={1.2} />
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(64px, 9vw, 104px)", lineHeight: 1, letterSpacing: "0.08em", color: COLORS.gold, background: "rgba(251,248,242,0.82)", padding: "6px 18px 2px", borderRadius: 8 }}>
+          ORO
+        </span>
+        <span style={{ fontFamily: SERIF, fontSize: "clamp(22px, 3vw, 30px)", color: COLORS.oliveDark, marginTop: 6, background: "rgba(251,248,242,0.82)", padding: "0 12px", borderRadius: 6 }}>
+          studio
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Hero() {
   const t = useT();
   return (
@@ -552,14 +597,7 @@ function Hero() {
           </div>
         </div>
 
-        <Photo
-          name="hero-consulting"
-          alt={t.hero.photoAlt}
-          label={t.hero.photoLabel}
-          height={420}
-          sizes="(max-width: 860px) 100vw, 520px"
-          eager
-        />
+        <HeroBrand label={t.hero.logoAlt} />
       </div>
     </section>
   );
@@ -985,18 +1023,19 @@ function Lightbox({ photos, index, onClose, onNav }) {
 function Gallery() {
   const [open, setOpen] = useState(null);
   const t = useT();
-  const names = [
-    "gallery-birthday-group",
-    "gallery-meditation-circle",
-    "gallery-workshop-scrub",
-    "gallery-macarons",
-    "gallery-birthday-toast",
-    "gallery-workshop-wide",
-    "gallery-meditation-alt",
-    "gallery-birthday-portrait",
-    "gallery-workshop-alt",
+  // Order matches t.gallery.photos (captions). `pos` = which part of the photo stays in the 4:5 crop.
+  const files = [
+    { name: "gallery-birthday-table" },
+    { name: "gallery-tea-meeting", pos: "50% 70%" },
+    { name: "gallery-kids-party" },
+    { name: "gallery-womens-circle" },
+    { name: "gallery-consultation", pos: "68% 50%" },
+    { name: "gallery-birthday-friends" },
+    { name: "gallery-warm-meetings" },
+    { name: "gallery-celebration-glasses" },
+    { name: "gallery-setup" },
   ];
-  const photos = names.map((name, i) => ({ name, ...t.gallery.photos[i] }));
+  const photos = files.map((f, i) => ({ ...f, ...t.gallery.photos[i] }));
   // Deterministic "scattered" offsets/rotations per card — organic but stable between renders.
   const scatter = [
     { y: 0, r: -1.8 },
@@ -1043,7 +1082,7 @@ function Gallery() {
               width: "100%",
             }}
           >
-            <Photo name={p.name} alt={p.alt} label={p.label} ratio="4 / 5" sizes="(max-width: 640px) 62vw, (max-width: 860px) 45vw, 360px" />
+            <Photo name={p.name} alt={p.alt} label={p.label} ratio="4 / 5" sizes="(max-width: 640px) 62vw, (max-width: 860px) 45vw, 360px" style={p.pos ? { objectPosition: p.pos } : undefined} />
           </button>
         ))}
       </div>
@@ -2097,6 +2136,7 @@ export default function App({ dict }) {
           .oro-hero-grid > *:first-child { order: 2; }
           .oro-hero-grid > *:last-child { order: 1; }
           .oro-about-grid > *:first-child { max-width: 420px; }
+          .oro-hero-brand { max-width: 240px !important; }
         }
         @media (max-width: 760px) {
           .oro-footer-grid { grid-template-columns: 1fr !important; }
