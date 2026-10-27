@@ -296,6 +296,19 @@ const et = {
     doneTitle: (name) => `Aitäh, ${name}! Peaaegu valmis`,
     doneText:
       "Avasime WhatsAppi valmis sõnumiga. Saada see ära ja me võtame sinuga ühendust, et broneering kinnitada ja arve saata.",
+    submitCal: "Broneeri",
+    submitNoteCal: "Aeg broneeritakse kohe meie kalendris. Võtame sinuga ühendust, et broneering kinnitada.",
+    sending: "Saadame…",
+    loadingSlots: "Kontrollime vabu aegu…",
+    slotsError: "Vabade aegade laadimine ebaõnnestus. Päringu saad saata WhatsAppi kaudu, kinnitame aja käsitsi.",
+    slotBusy: "See aeg on juba broneeritud",
+    dayFull: "See päev on täielikult broneeritud",
+    taken: "Keegi broneeris selle aja just praegu. Palun vali mõni teine aeg.",
+    sendError: "Päringu saatmine ebaõnnestus. Saada see WhatsAppi kaudu, see võtab vaid minuti.",
+    sendErrorCta: "Saada WhatsAppi kaudu",
+    doneTitleCal: (name) => `Aitäh, ${name}! Päring on vastu võetud`,
+    doneTextCal:
+      "Broneerisime selle aja sinu jaoks esialgselt ja võtame peagi ühendust, et broneering kinnitada ja arve saata.",
     reopen: "Ava WhatsApp uuesti",
     again: "Saada uus päring",
   },
@@ -316,7 +329,7 @@ const et = {
       },
       {
         q: "Kuidas stuudiot broneerida?",
-        a: "Vali kodulehe kalendrist kuupäev ja kellaaeg ning saada päring WhatsAppi kaudu või kirjuta meile otse: +372 5336 3795.",
+        a: "Vali kodulehe kalendrist vaba kuupäev ja kellaaeg ning saada päring või kirjuta meile otse WhatsAppis: +372 5336 3795.",
       },
       {
         q: "Mis on võtmed-kätte üritus?",

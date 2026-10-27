@@ -150,7 +150,7 @@ writeFileSync(
 - Turnkey parties: from 5 guests, 4 hours (2 h programme with an expert + 2 h free time), bottle of prosecco as a gift
 - Programmes: own perfume creation, perfume lecture, intention candles, acrylic painting on canvas (for adults and children, incl. kids' birthdays), astrology evening, numerology, minerals and bracelets, transformational game
 - Included: furnished space, photo corners, Wi-Fi, TV with laptop connection, Bluetooth speaker, coffee machine, coffee, tea and light snacks, tableware for 15
-- Booking: calendar on the website (sends a WhatsApp message) or WhatsApp ${CONTACT.phoneDisplay}
+- Booking: calendar on the website (shows free times) or WhatsApp ${CONTACT.phoneDisplay}
 - Email: ${CONTACT.email}
 
 ## Pages

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { LangContext, useT, langHref } from "./i18n/index.js";
-import { CONTACT } from "../site.config.js";
+import { CONTACT, BOOKING_API_URL } from "../site.config.js";
 import {
   Instagram,
   Facebook,
@@ -1194,8 +1194,11 @@ function Pricing() {
 }
 
 /* ---------------------------------------------------------
-   BOOKING — календарь. Заявка уходит в WhatsApp готовым сообщением
-   (без сервера: человек сам нажимает «Отправить» в WhatsApp).
+   BOOKING — календарь.
+   Если в site.config.js задан BOOKING_API_URL (Google Apps Script, см.
+   google-apps-script/), занятые часы берутся из Google Календаря, а заявка
+   сразу ставится в календарь. Без него (или если скрипт не ответил) заявка
+   уходит в WhatsApp готовым сообщением.
 --------------------------------------------------------- */
 const TIME_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
 const STUDIO_CLOSE_HOUR = 20; // last booking must end by this hour
@@ -1210,9 +1213,15 @@ function addHours(time, hours) {
   return `${String(h + hours).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function maxDurationFrom(time) {
-  const [h] = time.split(":").map(Number);
-  return Math.max(1, STUDIO_CLOSE_HOUR - h);
+const hourOf = (time) => Number(time.split(":")[0]);
+const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+// Longest booking from `time`: until closing or until the next busy hour.
+function maxDurationFrom(time, busyHours = []) {
+  const start = hourOf(time);
+  let h = start;
+  while (h < STUDIO_CLOSE_HOUR && !busyHours.includes(h)) h++;
+  return Math.max(1, h - start);
 }
 
 function buildCalendar(year, month) {
@@ -1243,13 +1252,47 @@ function Booking() {
   const [selectedTime, setSelectedTime] = useState(null);
   const [duration, setDuration] = useState(1);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [honeypot, setHoneypot] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [doneVia, setDoneVia] = useState("whatsapp"); // "calendar" | "whatsapp"
+  const [sendState, setSendState] = useState("idle"); // idle | sending | taken | error
+
+  // Busy hours from Google Calendar, per month: { "2026-10": { "2026-10-29": [14, 15] } }
+  const [busyByMonth, setBusyByMonth] = useState({});
+  const [busyState, setBusyState] = useState(BOOKING_API_URL ? "loading" : "off"); // off | loading | ok | error
+  const [reloadKey, setReloadKey] = useState(0);
+  const monthKey = cursor ? `${cursor.year}-${cursor.month}` : null;
+
+  useEffect(() => {
+    if (!BOOKING_API_URL || !cursor) return;
+    let cancelled = false;
+    const last = new Date(cursor.year, cursor.month + 1, 0).getDate();
+    const url = `${BOOKING_API_URL}?action=busy&from=${ymd(cursor.year, cursor.month, 1)}&to=${ymd(cursor.year, cursor.month, last)}`;
+    setBusyState("loading");
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (!data || !data.ok) throw new Error("busy failed");
+        setBusyByMonth((prev) => ({ ...prev, [`${cursor.year}-${cursor.month}`]: data.busy || {} }));
+        setBusyState("ok");
+      })
+      .catch(() => !cancelled && setBusyState("error"));
+    return () => {
+      cancelled = true;
+    };
+  }, [monthKey, reloadKey]);
+
+  const busyHoursFor = (d) => (cursor && d ? ((busyByMonth[monthKey] || {})[ymd(cursor.year, cursor.month, d)] || []) : []);
+  const busyHours = busyHoursFor(selectedDay);
+  const slotsLocked = busyState === "loading";
 
   const isToday =
     !!today && !!cursor && selectedDay === today.getDate() && cursor.month === today.getMonth() && cursor.year === today.getFullYear();
-  const slotPassed = (slot) => isToday && Number(slot.split(":")[0]) <= today.getHours();
+  const slotPassed = (slot) => isToday && hourOf(slot) <= today.getHours();
+  const slotBusy = (slot) => busyHours.includes(hourOf(slot));
 
-  const maxDuration = selectedTime ? maxDurationFrom(selectedTime) : DURATIONS.length;
+  const maxDuration = selectedTime ? maxDurationFrom(selectedTime, busyHours) : DURATIONS.length;
   const endTime = selectedTime ? addHours(selectedTime, duration) : null;
   const guests = Math.min(15, Math.max(1, Number(form.guests) || 1));
   const pricePerHour = pricePerHourFor(guests);
@@ -1264,6 +1307,13 @@ function Booking() {
     const cmp = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     return date < cmp;
   };
+  // A day is closed when every slot is taken (or already over today).
+  const isFull = (d) => {
+    const hours = busyHoursFor(d);
+    if (!hours.length) return false;
+    const isTodayCell = cursor.year === today.getFullYear() && cursor.month === today.getMonth() && d === today.getDate();
+    return TIME_SLOTS.every((slot) => hours.includes(hourOf(slot)) || (isTodayCell && hourOf(slot) <= today.getHours()));
+  };
 
   const changeMonth = (delta) => {
     if (!cursor) return;
@@ -1277,7 +1327,7 @@ function Booking() {
     setDuration(1);
   };
 
-  const canSubmit = selectedDay && selectedTime && form.name.trim() && form.contact.trim();
+  const canSubmit = selectedDay && selectedTime && form.name.trim() && form.contact.trim() && sendState !== "sending";
 
   const dateLabel = selectedDay && cursor ? b.dateLabel(selectedDay, cursor.month, cursor.year) : null;
   const typeLabel = b.eventTypes[form.type];
@@ -1297,15 +1347,58 @@ function Booking() {
       })
     );
 
+  const sendViaWhatsapp = () => {
+    window.open(bookingUrl(), "_blank", "noopener,noreferrer");
+    setDoneVia("whatsapp");
+    setConfirmed(true);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canSubmit) return;
-    window.open(bookingUrl(), "_blank", "noopener,noreferrer");
-    setConfirmed(true);
+    if (!BOOKING_API_URL || busyState === "error") return sendViaWhatsapp();
+
+    setSendState("sending");
+    // text/plain keeps this a "simple" request, which Google Apps Script accepts cross-origin.
+    fetch(BOOKING_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        date: ymd(cursor.year, cursor.month, selectedDay),
+        start: hourOf(selectedTime),
+        hours: duration,
+        type: typeLabel,
+        guests,
+        name: form.name.trim(),
+        contact: form.contact.trim(),
+        comment: form.comment.trim(),
+        lang: t.lang,
+        price: totalPrice,
+        website: honeypot,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.ok) {
+          setSendState("idle");
+          setDoneVia("calendar");
+          setConfirmed(true);
+          setReloadKey((k) => k + 1);
+        } else if (data && (data.error === "busy" || data.error === "past")) {
+          setSendState("taken");
+          setSelectedTime(null);
+          setDuration(1);
+          setReloadKey((k) => k + 1);
+        } else {
+          throw new Error("booking failed");
+        }
+      })
+      .catch(() => setSendState("error"));
   };
 
   const reset = () => {
     setConfirmed(false);
+    setSendState("idle");
     setSelectedDay(null);
     setSelectedTime(null);
     setDuration(1);
@@ -1332,7 +1425,7 @@ function Booking() {
               <Check size={28} color={COLORS.olive} />
             </div>
             <h3 style={{ fontFamily: SERIF, fontSize: 28, color: COLORS.ink, margin: "0 0 10px", fontWeight: 500 }}>
-              {b.doneTitle(form.name.trim())}
+              {doneVia === "calendar" ? b.doneTitleCal(form.name.trim()) : b.doneTitle(form.name.trim())}
             </h3>
             <p style={{ fontFamily: SANS, fontSize: 14, color: COLORS.inkSoft, lineHeight: 1.7, fontWeight: 300 }}>
               <strong style={{ color: COLORS.olive }}>
@@ -1341,13 +1434,15 @@ function Booking() {
               <br />
               {b.guests(guests)} · {b.hours(duration)}
               <br />
-              {b.doneText}
+              {doneVia === "calendar" ? b.doneTextCal : b.doneText}
             </p>
-            <div style={{ marginTop: 18 }}>
-              <Button href={bookingUrl()} external>
-                {b.reopen}
-              </Button>
-            </div>
+            {doneVia === "whatsapp" && (
+              <div style={{ marginTop: 18 }}>
+                <Button href={bookingUrl()} external>
+                  {b.reopen}
+                </Button>
+              </div>
+            )}
             <button
               onClick={reset}
               className="oro-btn oro-btn-secondary"
@@ -1420,17 +1515,20 @@ function Booking() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, minHeight: cursor ? undefined : 260 }}>
             {cells.map((d, i) => {
-              const disabled = !d || isPast(d);
+              const full = !!d && !isPast(d) && isFull(d);
+              const disabled = !d || isPast(d) || full;
               const active = d === selectedDay;
               return (
                 <button
                   key={i}
                   disabled={disabled}
                   className="oro-pick"
+                  title={full ? b.dayFull : undefined}
                   onClick={() => {
                     setSelectedDay(d);
                     setSelectedTime(null);
                     setDuration(1);
+                    setSendState("idle");
                   }}
                   style={{
                     aspectRatio: "1",
@@ -1438,6 +1536,7 @@ function Booking() {
                     border: "none",
                     background: active ? COLORS.oliveDark : d ? COLORS.ivoryDeep : "transparent",
                     color: active ? COLORS.ivoryCard : disabled ? "rgba(58,52,40,0.25)" : COLORS.ink,
+                    textDecoration: full ? "line-through" : "none",
                     fontFamily: SANS,
                     fontSize: 13,
                     cursor: disabled ? "default" : "pointer",
@@ -1449,21 +1548,31 @@ function Booking() {
             })}
           </div>
 
+          {busyState === "loading" && (
+            <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, margin: "14px 0 0" }}>{b.loadingSlots}</p>
+          )}
+          {busyState === "error" && (
+            <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkSoft, margin: "14px 0 0" }}>{b.slotsError}</p>
+          )}
+
           {selectedDay && (
             <div style={{ marginTop: 20 }}>
               <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>{b.freeTime(dateLabel)}</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {TIME_SLOTS.map((slot) => {
-                  const passed = slotPassed(slot);
+                  const taken = slotBusy(slot);
+                  const passed = slotPassed(slot) || taken || slotsLocked;
                   const active = slot === selectedTime;
                   return (
                     <button
                       key={slot}
                       disabled={passed}
                       className="oro-pick"
+                      title={taken ? b.slotBusy : undefined}
                       onClick={() => {
                         setSelectedTime(slot);
-                        setDuration((d) => Math.min(d, maxDurationFrom(slot)));
+                        setDuration((d) => Math.min(d, maxDurationFrom(slot, busyHours)));
+                        setSendState("idle");
                       }}
                       style={{
                         padding: "8px 14px",
@@ -1471,6 +1580,7 @@ function Booking() {
                         border: `1px solid ${active ? COLORS.oliveDark : "rgba(111,122,86,0.3)"}`,
                         background: active ? COLORS.oliveDark : "transparent",
                         color: active ? COLORS.ivoryCard : passed ? "rgba(58,52,40,0.25)" : COLORS.ink,
+                        textDecoration: taken ? "line-through" : "none",
                         fontFamily: SANS,
                         fontSize: 12.5,
                         cursor: passed ? "default" : "pointer",
@@ -1564,6 +1674,17 @@ function Booking() {
               onChange={(e) => setForm({ ...form, comment: e.target.value })}
               style={{ ...inputStyle, resize: "vertical", fontFamily: SANS }}
             />
+            {/* Ловушка для спам-ботов: скрыта от людей и скринридеров */}
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }}
+            />
 
             <div
               style={{
@@ -1609,10 +1730,30 @@ function Booking() {
                 cursor: canSubmit ? "pointer" : "default",
               }}
             >
-              {b.submit}
+              {sendState === "sending" ? b.sending : BOOKING_API_URL && busyState !== "error" ? b.submitCal : b.submit}
             </button>
+            {sendState === "taken" && (
+              <p role="alert" style={{ fontFamily: SANS, fontSize: 12.5, lineHeight: 1.6, color: COLORS.oliveDark, fontWeight: 500, margin: 0, textAlign: "center" }}>
+                {b.taken}
+              </p>
+            )}
+            {sendState === "error" && (
+              <div role="alert" style={{ textAlign: "center" }}>
+                <p style={{ fontFamily: SANS, fontSize: 12.5, lineHeight: 1.6, color: COLORS.oliveDark, fontWeight: 500, margin: "0 0 10px" }}>
+                  {b.sendError}
+                </p>
+                <button
+                  type="button"
+                  onClick={sendViaWhatsapp}
+                  className="oro-btn oro-btn-secondary"
+                  style={{ fontFamily: SANS, fontSize: 13, color: COLORS.oliveDark, background: "none", border: `1px solid ${COLORS.oliveSoft}`, borderRadius: 30, padding: "10px 22px", cursor: "pointer" }}
+                >
+                  {b.sendErrorCta}
+                </button>
+              </div>
+            )}
             <p style={{ fontFamily: SANS, fontSize: 12, lineHeight: 1.6, color: COLORS.inkSoft, fontWeight: 300, margin: 0, textAlign: "center" }}>
-              {b.submitNote}
+              {BOOKING_API_URL && busyState !== "error" ? b.submitNoteCal : b.submitNote}
             </p>
           </form>
         </Card>
