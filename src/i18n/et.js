@@ -130,6 +130,11 @@ const et = {
       text: "Valid teema, millega soovid töötada, ja lood rituaalse küünla – oma kavatsuse sümboli.",
     },
     {
+      slug: "painting",
+      title: "Loominguline õhtu: maal lõuendil",
+      text: "Loo kogenud meistri juhendamisel oma ainulaadne maal akrüülvärvidega. Joonistamisoskust pole vaja! Hubane õhkkond, inspiratsioon ja valmis maal, mille saad endaga kaasa võtta. Sobib suurepäraselt nii täiskasvanutele kui ka lastele, ka sünnipäevadeks.",
+    },
+    {
       slug: "astrology",
       title: "Astroloogiaõhtu",
       text: "Sinu astroloogiline portree. Teema valid ette: suhted, elu eesmärk, raha, tugevad küljed, oluline eluperiood või midagi muud.",
