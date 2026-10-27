@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { LangContext, useT, langHref } from "./i18n/index.js";
+import { CONTACT } from "../site.config.js";
 import {
   Instagram,
   Facebook,
@@ -35,13 +37,8 @@ const asset = (path) => `${import.meta.env.BASE_URL}${path}`.replace(/\/{2,}/g, 
 /* ---------------------------------------------------------
    CONTACTS — single source of truth
 --------------------------------------------------------- */
-const PHONE_DISPLAY = "+372 5336 3795";
-const PHONE_RAW = "37253363795";
-const EMAIL = "events@orostudiotallinn.com";
+const { phoneDisplay: PHONE_DISPLAY, phoneRaw: PHONE_RAW, email: EMAIL } = CONTACT;
 const whatsapp = (text) => `https://wa.me/${PHONE_RAW}?text=${encodeURIComponent(text)}`;
-const WA_FORMAT = whatsapp("Здравствуйте! Помогите, пожалуйста, подобрать формат мероприятия в ORO Studio.");
-const WA_TURNKEY = whatsapp("Здравствуйте! Хочу узнать стоимость мероприятия под ключ в ORO Studio.");
-const WA_REGULAR = whatsapp("Здравствуйте! Хочу проводить регулярные мероприятия в ORO Studio.");
 
 /* ---------------------------------------------------------
    TOKENS
@@ -82,11 +79,14 @@ function FlowerOfLife({ size = 300, opacity = 1, color = COLORS.gold, strokeWidt
     const a = (Math.PI / 3) * i + Math.PI / 6;
     centers.push([2 * r * Math.cos(Math.PI / 6) * Math.cos(a - Math.PI / 6), 2 * r * Math.cos(Math.PI / 6) * Math.sin(a - Math.PI / 6)]);
   }
+  // Rounded so the pre-rendered HTML matches the browser exactly (Math.sin/cos
+  // can differ in the last digits between Node and browsers).
+  const round = (v) => Math.round(v * 1000) / 1000;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ opacity }} aria-hidden="true">
-      <circle cx={cx} cy={cy} r={size * 0.47} fill="none" stroke={color} strokeWidth={strokeWidth} />
+      <circle cx={cx} cy={cy} r={round(size * 0.47)} fill="none" stroke={color} strokeWidth={strokeWidth} />
       {centers.map(([x, y], i) => (
-        <circle key={i} cx={cx + x} cy={cy + y} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
+        <circle key={i} cx={round(cx + x)} cy={round(cy + y)} r={round(r)} fill="none" stroke={color} strokeWidth={strokeWidth} />
       ))}
     </svg>
   );
@@ -200,14 +200,16 @@ function Button({ href, children, variant = "primary", light, external }) {
 }
 
 function SwipeHint() {
+  const t = useT();
   return (
     <p className="oro-swipe-hint" style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.08em", color: COLORS.oliveSoft, margin: "0 0 10px" }}>
-      Листайте →
+      {t.common.swipe}
     </p>
   );
 }
 
-function PhotoPlaceholder({ label = "Фото появится здесь", height = 260, ratio, style = {} }) {
+function PhotoPlaceholder({ label, height = 260, ratio, style = {} }) {
+  const t = useT();
   return (
     <div
       style={{
@@ -229,35 +231,45 @@ function PhotoPlaceholder({ label = "Фото появится здесь", heig
       }}
     >
       <ImageIcon size={26} strokeWidth={1.3} />
-      <span style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.05em" }}>{label}</span>
+      <span style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.05em" }}>{label || t.common.photoSoon}</span>
     </div>
   );
 }
 
-// Real photo with graceful fallback to the placeholder above if the file
-// isn't present yet (e.g. before /images/... is added to the repo's public folder).
+// Photos live in /public/images as the original JPG (fallback + og:image)
+// plus optimized WebP copies in /public/images/w at 640 and 1280 px wide.
+const photo = (name) => asset(`images/${name}.jpg`);
+const webpSet = (name) => `${asset(`images/w/${name}-640.webp`)} 640w, ${asset(`images/w/${name}-1280.webp`)} 1280w`;
+const webpLarge = (name) => asset(`images/w/${name}-1280.webp`);
+
+// Real photo with graceful fallback to the placeholder above if the file is missing.
+// `name` is the file name without extension, e.g. "hero-consulting".
 // Pass `ratio` (e.g. "4 / 5") for a fixed-aspect crop instead of a fixed pixel height.
-function Photo({ src, alt, label, height = 260, ratio, eager = false, style = {} }) {
+// `sizes` tells the browser how wide the photo is shown, so it picks the right WebP.
+function Photo({ name, alt, label, height = 260, ratio, eager = false, sizes = "(max-width: 640px) 80vw, 400px", style = {} }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <PhotoPlaceholder label={label} height={height} ratio={ratio} style={style} />;
   return (
-    <img
-      src={src}
-      alt={alt}
-      loading={eager ? "eager" : "lazy"}
-      decoding="async"
-      onError={() => setFailed(true)}
-      style={{
-        width: "100%",
-        height: ratio ? undefined : height,
-        aspectRatio: ratio || undefined,
-        objectFit: "cover",
-        borderRadius: 18,
-        boxShadow: "0 16px 34px -16px rgba(58,52,40,0.35)",
-        display: "block",
-        ...style,
-      }}
-    />
+    <picture style={{ display: "block" }}>
+      <source type="image/webp" srcSet={webpSet(name)} sizes={sizes} />
+      <img
+        src={photo(name)}
+        alt={alt}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        onError={() => setFailed(true)}
+        style={{
+          width: "100%",
+          height: ratio ? undefined : height,
+          aspectRatio: ratio || undefined,
+          objectFit: "cover",
+          borderRadius: 18,
+          boxShadow: "0 16px 34px -16px rgba(58,52,40,0.35)",
+          display: "block",
+          ...style,
+        }}
+      />
+    </picture>
   );
 }
 
@@ -329,7 +341,34 @@ function Section({ id, bg = COLORS.ivory, children, ornament, padding = "100px 2
 /* ---------------------------------------------------------
    NAV
 --------------------------------------------------------- */
+function LangSwitch({ mobile }) {
+  const t = useT();
+  const other = t.nav.switchTo;
+  return (
+    <a
+      href={langHref(other.code.toLowerCase())}
+      hrefLang={other.code.toLowerCase()}
+      lang={other.code.toLowerCase()}
+      aria-label={other.label}
+      title={other.label}
+      className={mobile ? undefined : "oro-nav-link"}
+      style={{
+        fontFamily: SANS,
+        fontSize: mobile ? 15 : 12.5,
+        fontWeight: 500,
+        letterSpacing: "0.12em",
+        color: COLORS.oliveDark,
+        textDecoration: "none",
+        ...(mobile ? { display: "block", padding: "12px 0" } : {}),
+      }}
+    >
+      {mobile ? `${other.code} · ${other.label}` : other.code}
+    </a>
+  );
+}
+
 function Nav() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [solid, setSolid] = useState(false);
   useEffect(() => {
@@ -338,14 +377,7 @@ function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const links = [
-    ["О студии", "#about"],
-    ["Форматы", "#formats"],
-    ["Под ключ", "#turnkey"],
-    ["Галерея", "#gallery"],
-    ["Цены", "#pricing"],
-    ["Календарь", "#booking"],
-  ];
+  const links = t.nav.links;
 
   return (
     <div
@@ -369,7 +401,7 @@ function Nav() {
           justifyContent: "space-between",
         }}
       >
-        <a href="#top" aria-label="ORO Studio — наверх" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+        <a href="#top" aria-label={t.nav.toTop} style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
           <Logo size={26} />
         </a>
 
@@ -386,6 +418,10 @@ function Nav() {
           ))}
         </nav>
 
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        <span className="oro-nav-links">
+          <LangSwitch />
+        </span>
         <a
           href="#booking"
           className="oro-nav-cta oro-btn oro-btn-primary"
@@ -400,23 +436,24 @@ function Nav() {
             letterSpacing: "0.03em",
           }}
         >
-          Забронировать
+          {t.common.book}
         </a>
 
         <button
           onClick={() => setOpen(!open)}
           className="oro-burger"
-          aria-label={open ? "Закрыть меню" : "Открыть меню"}
+          aria-label={open ? t.nav.closeMenu : t.nav.openMenu}
           aria-expanded={open}
           style={{ display: "none", background: "none", border: "none", color: COLORS.ink, cursor: "pointer" }}
         >
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
+        </div>
       </div>
 
       {open && (
         <div className="oro-mobile-menu" style={{ background: COLORS.ivory, padding: "10px 28px 24px", display: "none" }}>
-          {[...links, ["Забронировать", "#booking"]].map(([label, href], i) => (
+          {[...links, [t.common.book, "#booking"]].map(([label, href], i) => (
             <a
               key={label + i}
               href={href}
@@ -434,6 +471,7 @@ function Nav() {
               {label}
             </a>
           ))}
+          <LangSwitch mobile />
         </div>
       )}
 
@@ -452,6 +490,7 @@ function Nav() {
    HERO
 --------------------------------------------------------- */
 function Hero() {
+  const t = useT();
   return (
     <section
       id="top"
@@ -479,7 +518,7 @@ function Hero() {
         className="oro-hero-grid"
       >
         <div>
-          <Eyebrow>В самом сердце Таллинна</Eyebrow>
+          <Eyebrow>{t.hero.eyebrow}</Eyebrow>
           <h1
             style={{
               fontFamily: SERIF,
@@ -490,7 +529,7 @@ function Hero() {
               margin: "0 0 22px",
             }}
           >
-            Пространство, где <span style={{ color: COLORS.olive, fontStyle: "italic" }}>хочется встречаться</span>
+            {t.hero.titleA}<span style={{ color: COLORS.olive, fontStyle: "italic" }}>{t.hero.titleB}</span>
           </h1>
           <p
             style={{
@@ -503,22 +542,22 @@ function Hero() {
               fontWeight: 300,
             }}
           >
-            Камерная студия для встреч, мастер-классов, дней рождения и девичников. Аренда пространства
-            или мероприятие под ключ — до 15 человек.
+            {t.hero.text}
           </p>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <Button href="#booking">Забронировать студию</Button>
+            <Button href="#booking">{t.common.bookStudio}</Button>
             <Button href="#booking" variant="secondary">
-              Посмотреть календарь
+              {t.common.seeCalendar}
             </Button>
           </div>
         </div>
 
         <Photo
-          src={asset("images/hero-consulting.jpg")}
-          alt="Гостиная зона ORO Studio"
-          label="Фото студии — гостиная зона"
+          name="hero-consulting"
+          alt={t.hero.photoAlt}
+          label={t.hero.photoLabel}
           height={420}
+          sizes="(max-width: 860px) 100vw, 520px"
           eager
         />
       </div>
@@ -530,36 +569,27 @@ function Hero() {
    ABOUT — история Наталии
 --------------------------------------------------------- */
 function About() {
+  const t = useT();
+  const a = t.about;
   return (
     <Section id="about">
       <div
         style={{ display: "grid", gridTemplateColumns: "0.85fr 1.15fr", gap: 60, alignItems: "center" }}
         className="oro-about-grid"
       >
-        <Photo src={asset("images/natalia.jpg")} alt="Наталия, создатель ORO Studio" label="Фото Наталии" ratio="4 / 5" />
+        <Photo name="natalia" alt={a.photoAlt} label={a.photoLabel} ratio="4 / 5" sizes="(max-width: 860px) 420px, 480px" />
         <div>
-          <Eyebrow>О студии</Eyebrow>
-          <SectionTitle>Меня зовут Наталия, я создатель ORO Studio</SectionTitle>
+          <Eyebrow>{a.eyebrow}</Eyebrow>
+          <SectionTitle>{a.title}</SectionTitle>
           <Divider />
-          <Lead>
-            Я всегда любила объединять людей, знакомиться с новым и создавать вокруг себя пространство, в котором
-            интересно быть. Так появилось ORO.
-          </Lead>
-          <Lead>
-            Мне хотелось создать не просто красивую студию на несколько часов, а живое место для людей и их идей.
-            Сюда можно прийти на женскую встречу, познакомиться с интересным экспертом, провести свой мастер-класс —
-            или собрать близких и красиво отметить день рождения или девичник.
-          </Lead>
-          <Lead>
-            Сегодня здесь знакомятся с эфирными маслами и минералами, завтра играют в трансформационную игру, рисуют,
-            говорят о финансах или астрологии, а через несколько дней пространство полностью меняется под чьё-то
-            личное событие.
-          </Lead>
+          {a.paragraphs.map((p) => (
+            <Lead key={p}>{p}</Lead>
+          ))}
           <p style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 24, lineHeight: 1.35, color: COLORS.olive, margin: "26px 0 0" }}>
-            «ORO каждый раз немного разная. Потому что её наполняют люди.»
+            {a.quote}
           </p>
           <p style={{ fontFamily: SANS, fontSize: 14.5, color: COLORS.ink, fontWeight: 500, margin: "22px 0 0" }}>
-            Здесь уже есть пространство и атмосфера. А вы приходите со своей идеей.
+            {a.closing}
           </p>
         </div>
       </div>
@@ -571,16 +601,8 @@ function About() {
    FORMATS — что можно провести
 --------------------------------------------------------- */
 function Formats() {
-  const experts = [
-    "Консультации и индивидуальная работа",
-    "Психологические и коучинговые встречи",
-    "Мастер-классы и творческие занятия",
-    "Лекции и небольшие обучения",
-    "Женские встречи и регулярные группы",
-    "Трансформационные игры",
-    "Фото- и видеосъёмки",
-  ];
-  const privateEvents = ["Дни рождения", "Девичники", "Встречи подруг", "Тематические вечера", "Творческие праздники"];
+  const t = useT();
+  const f = t.formats;
 
   return (
     <Section
@@ -592,18 +614,15 @@ function Formats() {
         </div>
       }
     >
-      <Eyebrow light>Форматы</Eyebrow>
-      <SectionTitle light>Здесь можно провести своё мероприятие</SectionTitle>
+      <Eyebrow light>{f.eyebrow}</Eyebrow>
+      <SectionTitle light>{f.title}</SectionTitle>
       <Divider color={COLORS.ivoryCard} />
-      <Lead light>
-        ORO Studio подходит для небольших камерных событий — комфортно до 15 человек. Можно просто арендовать
-        пространство или выбрать мероприятие под ключ.
-      </Lead>
+      <Lead light>{f.lead}</Lead>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 36 }} className="oro-two-col">
         {[
-          { icon: Briefcase, title: "Для экспертов", items: experts },
-          { icon: Heart, title: "Для частных событий", items: privateEvents },
+          { icon: Briefcase, title: f.expertsTitle, items: f.experts },
+          { icon: Heart, title: f.privateTitle, items: f.private },
         ].map(({ icon: Icon, title, items }) => (
           <div
             key={title}
@@ -632,32 +651,13 @@ function Formats() {
    WHY ORO
 --------------------------------------------------------- */
 function Why() {
-  const items = [
-    {
-      icon: MapPin,
-      title: "В самом сердце города",
-      text: "Не нужно ехать далеко ради красивого мероприятия — гостям удобно добираться.",
-    },
-    {
-      icon: Users,
-      title: "Камерный формат",
-      text: "Люди здесь действительно общаются, а не теряются в огромном зале. До 15 человек — комфортно.",
-    },
-    {
-      icon: Camera,
-      title: "Красивые фотозоны",
-      text: "Готовые зоны для общих фото, контента и кадров, которые захочется сохранить.",
-    },
-    {
-      icon: Coffee,
-      title: "Всё для атмосферы",
-      text: "Кофе, чай, молоко и лёгкие угощения — мелочи, которые превращают встречу в приятный вечер.",
-    },
-  ];
+  const t = useT();
+  const icons = [MapPin, Users, Camera, Coffee];
+  const items = t.why.items.map((it, i) => ({ ...it, icon: icons[i] }));
   return (
     <Section id="why">
-      <Eyebrow>Почему ORO Studio</Eyebrow>
-      <SectionTitle>Уютное пространство, где не нужно начинать с пустой комнаты</SectionTitle>
+      <Eyebrow>{t.why.eyebrow}</Eyebrow>
+      <SectionTitle>{t.why.title}</SectionTitle>
       <Divider />
       <div
         style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginTop: 40 }}
@@ -691,64 +691,22 @@ function Why() {
 /* ---------------------------------------------------------
    TURNKEY — мероприятия под ключ + программы
 --------------------------------------------------------- */
-const PROGRAMS = [
-  {
-    slug: "perfume",
-    title: "Создание собственного парфюма",
-    text: "Каждая участница знакомится с ароматами и собирает свою композицию из эфирных масел. На память остаётся свой аромат.",
-  },
-  {
-    slug: "perfume-lecture",
-    title: "Парфюмерная лекция",
-    text: "Бренды и интересные ароматы, разбор нот и впечатлений. Понравившийся парфюм можно купить прямо на месте.",
-  },
-  {
-    slug: "candles",
-    title: "Программные свечи",
-    text: "Выбираете тему, с которой хочется работать, и создаёте свечу-ритуал — символ вашего намерения.",
-  },
-  {
-    slug: "astrology",
-    title: "Астрологический вечер",
-    text: "Ваш астрологический портрет. Тему выбираете заранее: отношения, предназначение, деньги, сильные стороны, важный период или своя.",
-  },
-  {
-    slug: "numerology",
-    title: "Нумерология",
-    text: "Взгляд на себя и свою жизнь через числа. Тему программы подбираем под вашу компанию.",
-  },
-  {
-    slug: "minerals",
-    title: "Минералы и браслеты",
-    text: "Знакомимся с минералами, выбираем подходящие камни и создаём свой браслет — памятный подарок каждой участнице.",
-  },
-  {
-    slug: "game",
-    title: "Трансформационная игра «Куда приводят мечты»",
-    text: "Когда хочется чего-то большего, чем развлечения: взглянуть на свои желания и цели под другим углом — смеясь и размышляя.",
-  },
-];
-
 function Turnkey() {
-  const timeline = [
-    { hours: "2 часа", text: "Выбранная программа с экспертом" },
-    { hours: "2 часа", text: "Время только для вашей компании: общение, фото, просекко, подарки и еда — никто не торопит" },
-  ];
+  const t = useT();
+  const k = t.turnkey;
+  const timeline = k.timeline;
   return (
     <Section id="turnkey" bg={COLORS.ivoryDeep}>
       <div style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 50, alignItems: "start" }} className="oro-two-col">
         <div>
-          <Eyebrow>Мероприятия под ключ</Eyebrow>
-          <SectionTitle>А если вы хотите не просто помещение?</SectionTitle>
+          <Eyebrow>{k.eyebrow}</Eyebrow>
+          <SectionTitle>{k.title}</SectionTitle>
           <Divider />
-          <Lead>
-            Хочется устроить день рождения или девичник, но не хочется самой искать программу, эксперта и еду и
-            продумывать каждую мелочь? Доверьте организацию нам.
-          </Lead>
+          <Lead>{k.lead}</Lead>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "22px 0 30px" }}>
-            {["От 5 человек", "Бутылочка просекко в подарок", "Готовые фотозоны"].map((t) => (
+            {k.chips.map((chip) => (
               <span
-                key={t}
+                key={chip}
                 style={{
                   fontFamily: SANS,
                   fontSize: 12.5,
@@ -759,22 +717,22 @@ function Turnkey() {
                   borderRadius: 20,
                 }}
               >
-                {t}
+                {chip}
               </span>
             ))}
           </div>
-          <Button href={WA_TURNKEY} external>
-            Узнать стоимость
+          <Button href={whatsapp(t.wa.turnkey)} external>
+            {k.cta}
           </Button>
           <p style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.inkSoft, fontWeight: 300, margin: "14px 0 0" }}>
-            Стоимость зависит от формата и количества гостей.
+            {k.priceNote}
           </p>
         </div>
 
         <Card>
-          <CardTitle>Вы получаете студию на 4 часа</CardTitle>
+          <CardTitle>{k.cardTitle}</CardTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 8 }}>
-            {timeline.map((t, i) => (
+            {timeline.map((step, i) => (
               <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
                 <div
                   style={{
@@ -790,10 +748,10 @@ function Turnkey() {
                     padding: "8px 10px",
                   }}
                 >
-                  {t.hours}
+                  {step.hours}
                 </div>
                 <p style={{ fontFamily: SANS, fontSize: 14, lineHeight: 1.65, color: COLORS.ink, fontWeight: 300, margin: "6px 0 0" }}>
-                  {t.text}
+                  {step.text}
                 </p>
               </div>
             ))}
@@ -803,8 +761,8 @@ function Turnkey() {
 
       {/* Programs */}
       <div style={{ marginTop: 80 }}>
-        <Eyebrow>Выберите программу</Eyebrow>
-        <SectionTitle>Программы для вашего праздника</SectionTitle>
+        <Eyebrow>{k.programsEyebrow}</Eyebrow>
+        <SectionTitle>{k.programsTitle}</SectionTitle>
         <Divider />
         <div style={{ marginTop: 28 }}>
           <SwipeHint />
@@ -813,12 +771,12 @@ function Turnkey() {
           className="oro-swipe oro-programs"
           style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24, marginTop: 8 }}
         >
-          {PROGRAMS.map((p, i) => (
+          {t.programs.map((p, i) => (
             <Card key={p.slug} style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <Photo
-                src={asset(`images/program-${p.slug}.jpg`)}
+                name={`program-${p.slug}`}
                 alt={p.title}
-                label={`Фото: ${p.title.toLowerCase()}`}
+                label={k.photoLabel(p.title)}
                 ratio="4 / 5"
                 style={{ borderRadius: 0, boxShadow: "none", border: "none" }}
               />
@@ -843,25 +801,25 @@ function Turnkey() {
         <Card style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
           <Coffee size={22} color={COLORS.gold} strokeWidth={1.5} style={{ flex: "0 0 auto", marginTop: 4 }} />
           <div>
-            <CardTitle size={21}>Кейтеринг</CardTitle>
+            <CardTitle size={21}>{k.cateringTitle}</CardTitle>
             <p style={{ fontFamily: SANS, fontSize: 13.5, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>
-              Поможем организовать еду и угощения для вашей компании.
+              {k.cateringText}
             </p>
           </div>
         </Card>
         <Card style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
           <Cake size={22} color={COLORS.gold} strokeWidth={1.5} style={{ flex: "0 0 auto", marginTop: 4 }} />
           <div>
-            <CardTitle size={21}>Торт</CardTitle>
-            <p style={{ fontFamily: SANS, fontSize: 13.5, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>Можно заказать отдельно.</p>
+            <CardTitle size={21}>{k.cakeTitle}</CardTitle>
+            <p style={{ fontFamily: SANS, fontSize: 13.5, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>{k.cakeText}</p>
           </div>
         </Card>
         <div style={{ alignSelf: "center", padding: "0 6px" }}>
           <p style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 21, color: COLORS.olive, margin: "0 0 6px", lineHeight: 1.35 }}>
-            Можно добавить к празднику, чтобы не организовывать всё самостоятельно.
+            {k.addonsNote}
           </p>
           <p style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.inkSoft, fontWeight: 300, margin: 0 }}>
-            Дополнительные услуги оплачиваются отдельно.
+            {k.addonsSmall}
           </p>
         </div>
       </div>
@@ -873,29 +831,13 @@ function Turnkey() {
    OCCASIONS — день рождения, девичник, эксперты
 --------------------------------------------------------- */
 function Occasions() {
-  const items = [
-    {
-      icon: Gift,
-      eyebrow: "День рождения",
-      title: "Праздник, который подходит именно вам",
-      text: "Не обязательно выбирать между рестораном и домашними посиделками. Соберите своих людей в красивом пространстве и добавьте программу — или просто красивый вечер с едой, тортом и фотографиями. Выбираете вы, мы помогаем всё собрать.",
-      cta: ["Выбрать дату", "#booking"],
-    },
-    {
-      icon: Sparkles,
-      eyebrow: "Девичник",
-      title: "Соберите своих девочек и сделайте вечер особенным",
-      text: "Можно прийти просто пообщаться. А можно создать свой аромат, сделать свечи или браслеты, узнать астрологический портрет или сыграть в трансформационную игру. От 5 человек.",
-      cta: ["Выбрать дату", "#booking"],
-    },
-    {
-      icon: Briefcase,
-      eyebrow: "Для экспертов",
-      title: "Красивое пространство для вашей встречи",
-      text: "Консультант, психолог, коуч, преподаватель, ведущий игры или мастер — проводите здесь консультации, группы, лекции и мастер-классы. Не нужно каждый раз искать новое помещение.",
-      cta: ["Обсудить регулярные встречи", WA_REGULAR, true],
-    },
+  const t = useT();
+  const extras = [
+    { icon: Gift, href: "#booking" },
+    { icon: Sparkles, href: "#booking" },
+    { icon: Briefcase, href: whatsapp(t.wa.regular), external: true },
   ];
+  const items = t.occasions.map((o, i) => ({ ...o, ...extras[i], cta: [o.cta, extras[i].href, extras[i].external] }));
   return (
     <Section id="occasions">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }} className="oro-three-col">
@@ -930,6 +872,7 @@ function Occasions() {
    GALLERY
 --------------------------------------------------------- */
 function Lightbox({ photos, index, onClose, onNav }) {
+  const t = useT();
   const touchX = React.useRef(null);
   useEffect(() => {
     const onKey = (e) => {
@@ -990,16 +933,16 @@ function Lightbox({ photos, index, onClose, onNav }) {
       }}
     >
       <img
-        src={p.src}
+        src={webpLarge(p.name)}
         alt={p.alt}
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 12, boxShadow: "0 30px 60px -20px rgba(0,0,0,0.6)" }}
       />
-      <button aria-label="Закрыть" className="oro-icon-btn" onClick={onClose} style={{ ...navBtn("right"), top: 30, transform: "none" }}>
+      <button aria-label={t.gallery.close} className="oro-icon-btn" onClick={onClose} style={{ ...navBtn("right"), top: 30, transform: "none" }}>
         <X size={20} />
       </button>
       <button
-        aria-label="Предыдущее фото"
+        aria-label={t.gallery.prev}
         className="oro-icon-btn"
         onClick={(e) => {
           e.stopPropagation();
@@ -1010,7 +953,7 @@ function Lightbox({ photos, index, onClose, onNav }) {
         <ChevronLeft size={22} />
       </button>
       <button
-        aria-label="Следующее фото"
+        aria-label={t.gallery.next}
         className="oro-icon-btn"
         onClick={(e) => {
           e.stopPropagation();
@@ -1041,17 +984,19 @@ function Lightbox({ photos, index, onClose, onNav }) {
 
 function Gallery() {
   const [open, setOpen] = useState(null);
-  const photos = [
-    { src: asset("images/gallery-birthday-group.jpg"), label: "Праздник в студии", alt: "Праздник в ORO Studio" },
-    { src: asset("images/gallery-meditation-circle.jpg"), label: "Медитативный круг", alt: "Групповая встреча" },
-    { src: asset("images/gallery-workshop-scrub.jpg"), label: "Мастер-класс", alt: "Мастер-класс в студии" },
-    { src: asset("images/gallery-macarons.jpg"), label: "Праздничные детали", alt: "Праздничный десерт" },
-    { src: asset("images/gallery-birthday-toast.jpg"), label: "Тёплые встречи", alt: "Гости студии" },
-    { src: asset("images/gallery-workshop-wide.jpg"), label: "Пространство для практик", alt: "Практика в студии" },
-    { src: asset("images/gallery-meditation-alt.jpg"), label: "Момент тишины", alt: "Встреча в студии" },
-    { src: asset("images/gallery-birthday-portrait.jpg"), label: "Атмосфера ORO", alt: "Гостья студии" },
-    { src: asset("images/gallery-workshop-alt.jpg"), label: "Творческий процесс", alt: "Мастер-класс" },
+  const t = useT();
+  const names = [
+    "gallery-birthday-group",
+    "gallery-meditation-circle",
+    "gallery-workshop-scrub",
+    "gallery-macarons",
+    "gallery-birthday-toast",
+    "gallery-workshop-wide",
+    "gallery-meditation-alt",
+    "gallery-birthday-portrait",
+    "gallery-workshop-alt",
   ];
+  const photos = names.map((name, i) => ({ name, ...t.gallery.photos[i] }));
   // Deterministic "scattered" offsets/rotations per card — organic but stable between renders.
   const scatter = [
     { y: 0, r: -1.8 },
@@ -1069,10 +1014,10 @@ function Gallery() {
 
   return (
     <Section id="gallery" bg={COLORS.ivoryDeep} padding="100px 28px 120px">
-      <Eyebrow>Галерея</Eyebrow>
-      <SectionTitle>Посмотрите, как здесь бывает</SectionTitle>
+      <Eyebrow>{t.gallery.eyebrow}</Eyebrow>
+      <SectionTitle>{t.gallery.title}</SectionTitle>
       <Divider />
-      <Lead>Живые люди. Настоящие встречи. Разные поводы. Одно пространство.</Lead>
+      <Lead>{t.gallery.lead}</Lead>
       <div style={{ marginTop: 28 }}>
         <SwipeHint />
       </div>
@@ -1082,10 +1027,10 @@ function Gallery() {
       >
         {photos.map((p, i) => (
           <button
-            key={p.src}
+            key={p.name}
             type="button"
             onClick={() => setOpen(i)}
-            aria-label={`Открыть фото: ${p.label}`}
+            aria-label={t.gallery.open(p.label)}
             className="oro-gallery-item"
             style={{
               "--gy": `${scatter[i % scatter.length].y}px`,
@@ -1098,7 +1043,7 @@ function Gallery() {
               width: "100%",
             }}
           >
-            <Photo src={p.src} alt={p.alt} label={p.label} ratio="4 / 5" />
+            <Photo name={p.name} alt={p.alt} label={p.label} ratio="4 / 5" sizes="(max-width: 640px) 62vw, (max-width: 860px) 45vw, 360px" />
           </button>
         ))}
       </div>
@@ -1131,61 +1076,47 @@ function Gallery() {
    PRICING + ЧТО ВЫ ПОЛУЧАЕТЕ
 --------------------------------------------------------- */
 function Pricing() {
-  const tiers = [
-    { title: "Индивидуальная работа", sub: "1–2 человека", price: "20", note: "Консультации и встречи" },
-    { title: "Групповые мероприятия", sub: "3–10 человек", price: "30", featured: true },
-    { title: "Групповые мероприятия", sub: "11–15 человек", price: "40" },
-  ];
-  const included = [
-    "Уютное готовое пространство и удобная мебель",
-    "Красивые фотозоны",
-    "Кофе, чай, молоко и лёгкие угощения",
-    "Мероприятия до 15 человек",
-    "Удобное расположение в самом сердце города",
-  ];
-  const equipment = [
-    { icon: Wifi, text: "Хороший Wi-Fi" },
-    { icon: Tv, text: "Телевизор с подключением ноутбука" },
-    { icon: Sparkles, text: "Bluetooth-колонка JBL" },
-    { icon: Coffee, text: "Кофемашина и капучинатор" },
-    { icon: Refrigerator, text: "Мини-холодильник, кулер с горячей и холодной водой" },
-    { icon: Users, text: "Обеденная группа и сервиз на 15 персон" },
-    { icon: Sparkles, text: "Бокалы для вина и шампанского, канцелярия" },
-  ];
-  const floor = ["Духовой шкаф", "Посудомоечная машина", "Микроволновая печь"];
+  const t = useT();
+  const pr = t.pricing;
+  const prices = ["20", "30", "40"];
+  const tiers = pr.tiers.map((tier, i) => ({ ...tier, price: prices[i], featured: i === 1 }));
+  const included = pr.included;
+  const equipmentIcons = [Wifi, Tv, Sparkles, Coffee, Refrigerator, Users, Sparkles];
+  const equipment = pr.equipment.map((text, i) => ({ icon: equipmentIcons[i] || Sparkles, text }));
+  const floor = pr.floor;
 
   return (
     <Section id="pricing">
-      <Eyebrow>Аренда студии</Eyebrow>
-      <SectionTitle>Прозрачная цена — без сюрпризов</SectionTitle>
+      <Eyebrow>{pr.eyebrow}</Eyebrow>
+      <SectionTitle>{pr.title}</SectionTitle>
       <Divider />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginTop: 40 }} className="oro-three-col">
-        {tiers.map((t) => (
-          <Card key={t.sub} style={t.featured ? { background: COLORS.oliveDark, border: "none" } : {}}>
+        {tiers.map((tier) => (
+          <Card key={tier.sub} style={tier.featured ? { background: COLORS.oliveDark, border: "none" } : {}}>
             <p
               style={{
                 fontFamily: SANS,
                 fontSize: 12,
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                color: t.featured ? COLORS.goldLight : COLORS.oliveSoft,
+                color: tier.featured ? COLORS.goldLight : COLORS.oliveSoft,
                 margin: "0 0 6px",
               }}
             >
-              {t.sub}
+              {tier.sub}
             </p>
-            <h3 style={{ fontFamily: SERIF, fontSize: 24, color: t.featured ? COLORS.ivoryCard : COLORS.ink, margin: "0 0 18px", fontWeight: 500 }}>
-              {t.title}
+            <h3 style={{ fontFamily: SERIF, fontSize: 24, color: tier.featured ? COLORS.ivoryCard : COLORS.ink, margin: "0 0 18px", fontWeight: 500 }}>
+              {tier.title}
             </h3>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontFamily: SERIF, fontSize: 52, color: t.featured ? COLORS.goldLight : COLORS.olive, fontWeight: 600 }}>
-                €{t.price}
+              <span style={{ fontFamily: SERIF, fontSize: 52, color: tier.featured ? COLORS.goldLight : COLORS.olive, fontWeight: 600 }}>
+                €{tier.price}
               </span>
-              <span style={{ fontFamily: SANS, fontSize: 13, color: t.featured ? "rgba(251,248,242,0.7)" : COLORS.inkSoft }}>/ час</span>
+              <span style={{ fontFamily: SANS, fontSize: 13, color: tier.featured ? "rgba(251,248,242,0.7)" : COLORS.inkSoft }}>{t.common.perHour}</span>
             </div>
-            {t.note && (
-              <p style={{ fontFamily: SANS, fontSize: 13, color: COLORS.inkSoft, fontWeight: 300, margin: "8px 0 0" }}>{t.note}</p>
+            {tier.note && (
+              <p style={{ fontFamily: SANS, fontSize: 13, color: COLORS.inkSoft, fontWeight: 300, margin: "8px 0 0" }}>{tier.note}</p>
             )}
           </Card>
         ))}
@@ -1204,30 +1135,30 @@ function Pricing() {
           fontWeight: 300,
         }}
       >
-        <span>✦ Сервис уборки (при необходимости) — €20, оплачивается отдельно</span>
+        <span>{pr.cleaning}</span>
         <span>
-          ✦ Планируете регулярные мероприятия?{" "}
-          <a href={WA_REGULAR} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.oliveDark, fontWeight: 500 }}>
-            Напишите нам
-          </a>{" "}
-          — обсудим удобный вариант
+          {pr.regularA}
+          <a href={whatsapp(t.wa.regular)} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.oliveDark, fontWeight: 500 }}>
+            {pr.regularLink}
+          </a>
+          {pr.regularB}
         </span>
       </div>
 
       {/* Что вы получаете */}
       <div style={{ marginTop: 70, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }} className="oro-two-col">
         <Card>
-          <CardTitle>Что вы получаете в студии</CardTitle>
+          <CardTitle>{pr.includedTitle}</CardTitle>
           <BulletList items={included} />
           <p style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 20, color: COLORS.olive, margin: "24px 0 0", lineHeight: 1.4 }}>
-            Вам не нужно начинать с пустой комнаты — просто приходите и создавайте своё мероприятие.
+            {pr.includedQuote}
           </p>
         </Card>
 
         <Card>
           <details className="oro-details">
             <summary>
-              <span style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 500, color: COLORS.olive }}>Подробнее об оснащении</span>
+              <span style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 500, color: COLORS.olive }}>{pr.equipmentTitle}</span>
               <ChevronDown size={18} color={COLORS.oliveDark} className="oro-chevron" />
             </summary>
             <div style={{ display: "flex", flexDirection: "column", gap: 13, marginTop: 18 }}>
@@ -1239,15 +1170,15 @@ function Pricing() {
               ))}
             </div>
             <p style={{ fontFamily: SANS, fontSize: 13, color: COLORS.inkSoft, fontWeight: 300, margin: "22px 0 12px" }}>
-              На этаже, по согласованию при бронировании:
+              {pr.floorNote}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {floor.map((t) => (
+              {floor.map((item) => (
                 <span
-                  key={t}
+                  key={item}
                   style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.oliveDark, background: COLORS.ivoryDeep, padding: "8px 14px", borderRadius: 20 }}
                 >
-                  {t}
+                  {item}
                 </span>
               ))}
             </div>
@@ -1256,38 +1187,22 @@ function Pricing() {
       </div>
 
       <div style={{ marginTop: 40 }}>
-        <Button href="#booking">Посмотреть календарь</Button>
+        <Button href="#booking">{t.common.seeCalendar}</Button>
       </div>
     </Section>
   );
 }
 
 /* ---------------------------------------------------------
-   BOOKING — демо-календарь (тестовая версия, заявки пока никуда не отправляются)
+   BOOKING — календарь. Заявка уходит в WhatsApp готовым сообщением
+   (без сервера: человек сам нажимает «Отправить» в WhatsApp).
 --------------------------------------------------------- */
-const MONTH_NAMES = [
-  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
-];
-const MONTH_GENITIVE = [
-  "января", "февраля", "марта", "апреля", "мая", "июня",
-  "июля", "августа", "сентября", "октября", "ноября", "декабря",
-];
-const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const TIME_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
 const STUDIO_CLOSE_HOUR = 20; // last booking must end by this hour
 const DURATIONS = [1, 2, 3, 4, 5, 6, 7, 8];
-const EVENT_TYPES = [
-  "Индивидуальная работа",
-  "Групповое мероприятие",
-  "Мастер-класс",
-  "День рождения",
-  "Девичник",
-  "Трансформационная игра",
-  "Другое",
-];
+const EVENT_TYPES = ["individual", "group", "workshop", "birthday", "bachelorette", "game", "other"];
+const TURNKEY_TYPES = ["birthday", "bachelorette"];
 
-const hoursWord = (n) => (n === 1 ? "час" : n < 5 ? "часа" : "часов");
 const pricePerHourFor = (guests) => (guests <= 2 ? 20 : guests <= 10 ? 30 : 40);
 
 function addHours(time, hours) {
@@ -1313,18 +1228,26 @@ function buildCalendar(year, month) {
 const EMPTY_FORM = { type: EVENT_TYPES[0], guests: 2, name: "", contact: "", comment: "" };
 
 function Booking() {
-  const today = new Date();
-  const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const t = useT();
+  const b = t.booking;
+  // "Today" is only known in the visitor's browser. The page is pre-rendered at
+  // build time, so the calendar grid is filled in after the page loads.
+  const [today, setToday] = useState(null);
+  const [cursor, setCursor] = useState(null);
+  useEffect(() => {
+    const now = new Date();
+    setToday(now);
+    setCursor({ year: now.getFullYear(), month: now.getMonth() });
+  }, []);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [duration, setDuration] = useState(1);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmed, setConfirmed] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   const isToday =
-    selectedDay === today.getDate() && cursor.month === today.getMonth() && cursor.year === today.getFullYear();
-  const slotPassed = (t) => isToday && Number(t.split(":")[0]) <= today.getHours();
+    !!today && !!cursor && selectedDay === today.getDate() && cursor.month === today.getMonth() && cursor.year === today.getFullYear();
+  const slotPassed = (slot) => isToday && Number(slot.split(":")[0]) <= today.getHours();
 
   const maxDuration = selectedTime ? maxDurationFrom(selectedTime) : DURATIONS.length;
   const endTime = selectedTime ? addHours(selectedTime, duration) : null;
@@ -1332,17 +1255,18 @@ function Booking() {
   const pricePerHour = pricePerHourFor(guests);
   const totalPrice = pricePerHour * duration;
 
-  const cells = useMemo(() => buildCalendar(cursor.year, cursor.month), [cursor]);
-  const atCurrentMonth = cursor.year === today.getFullYear() && cursor.month === today.getMonth();
+  const cells = useMemo(() => (cursor ? buildCalendar(cursor.year, cursor.month) : []), [cursor]);
+  const atCurrentMonth = !cursor || (cursor.year === today.getFullYear() && cursor.month === today.getMonth());
 
   const isPast = (d) => {
-    if (!d) return false;
+    if (!d || !cursor) return false;
     const date = new Date(cursor.year, cursor.month, d);
     const cmp = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     return date < cmp;
   };
 
   const changeMonth = (delta) => {
+    if (!cursor) return;
     let m = cursor.month + delta;
     let y = cursor.year;
     if (m < 0) { m = 11; y -= 1; }
@@ -1355,19 +1279,30 @@ function Booking() {
 
   const canSubmit = selectedDay && selectedTime && form.name.trim() && form.contact.trim();
 
+  const dateLabel = selectedDay && cursor ? b.dateLabel(selectedDay, cursor.month, cursor.year) : null;
+  const typeLabel = b.eventTypes[form.type];
+
+  const bookingUrl = () =>
+    whatsapp(
+      t.wa.booking({
+        type: typeLabel,
+        date: dateLabel,
+        time: `${selectedTime}–${endTime}`,
+        hours: b.hours(duration),
+        guests,
+        name: form.name.trim(),
+        contact: form.contact.trim(),
+        comment: form.comment.trim(),
+        price: totalPrice,
+      })
+    );
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canSubmit) return;
-    setSubmitting(true);
-    // Тестовая версия: здесь позже будет реальная отправка заявки
-    // (Google Calendar / email / WhatsApp).
-    setTimeout(() => {
-      setSubmitting(false);
-      setConfirmed(true);
-    }, 900);
+    window.open(bookingUrl(), "_blank", "noopener,noreferrer");
+    setConfirmed(true);
   };
-
-  const dateLabel = selectedDay ? `${selectedDay} ${MONTH_GENITIVE[cursor.month]} ${cursor.year}` : null;
 
   const reset = () => {
     setConfirmed(false);
@@ -1397,17 +1332,22 @@ function Booking() {
               <Check size={28} color={COLORS.olive} />
             </div>
             <h3 style={{ fontFamily: SERIF, fontSize: 28, color: COLORS.ink, margin: "0 0 10px", fontWeight: 500 }}>
-              Спасибо, {form.name}! Заявка отправлена
+              {b.doneTitle(form.name.trim())}
             </h3>
             <p style={{ fontFamily: SANS, fontSize: 14, color: COLORS.inkSoft, lineHeight: 1.7, fontWeight: 300 }}>
               <strong style={{ color: COLORS.olive }}>
-                {form.type} · {dateLabel}, {selectedTime}–{endTime}
+                {typeLabel} · {dateLabel}, {selectedTime}–{endTime}
               </strong>
               <br />
-              {guests} {guests === 1 ? "гость" : guests < 5 ? "гостя" : "гостей"} · {duration} {hoursWord(duration)}
+              {b.guests(guests)} · {b.hours(duration)}
               <br />
-              Мы свяжемся с вами ({form.contact}), чтобы подтвердить бронирование и прислать счёт.
+              {b.doneText}
             </p>
+            <div style={{ marginTop: 18 }}>
+              <Button href={bookingUrl()} external>
+                {b.reopen}
+              </Button>
+            </div>
             <button
               onClick={reset}
               className="oro-btn oro-btn-secondary"
@@ -1423,7 +1363,7 @@ function Booking() {
                 cursor: "pointer",
               }}
             >
-              Отправить ещё одну заявку
+              {b.again}
             </button>
           </Card>
         </div>
@@ -1446,10 +1386,10 @@ function Booking() {
         </div>
       }
     >
-      <Eyebrow light>Календарь</Eyebrow>
-      <SectionTitle light>Выберите дату</SectionTitle>
+      <Eyebrow light>{b.eyebrow}</Eyebrow>
+      <SectionTitle light>{b.title}</SectionTitle>
       <Lead light style={{ marginTop: 12 }}>
-        Посмотрите свободные даты, выберите время и расскажите немного о вашей встрече.
+        {b.lead}
       </Lead>
 
       <div style={{ marginTop: 34, display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 24 }} className="oro-booking-grid">
@@ -1458,27 +1398,27 @@ function Booking() {
             <button
               onClick={() => changeMonth(-1)}
               disabled={atCurrentMonth}
-              aria-label="Предыдущий месяц"
+              aria-label={b.prevMonth}
               style={{ ...iconBtnStyle, opacity: atCurrentMonth ? 0.35 : 1, cursor: atCurrentMonth ? "default" : "pointer" }}
             >
               <ChevronLeft size={18} color={COLORS.oliveDark} />
             </button>
             <span style={{ fontFamily: SERIF, fontSize: 20, color: COLORS.ink }}>
-              {MONTH_NAMES[cursor.month]} {cursor.year}
+              {cursor ? `${b.months[cursor.month]} ${cursor.year}` : "\u00a0"}
             </span>
-            <button onClick={() => changeMonth(1)} aria-label="Следующий месяц" className="oro-icon-btn" style={iconBtnStyle}>
+            <button onClick={() => changeMonth(1)} aria-label={b.nextMonth} className="oro-icon-btn" style={iconBtnStyle}>
               <ChevronRight size={18} color={COLORS.oliveDark} />
             </button>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 6 }}>
-            {WEEKDAYS.map((w) => (
+            {b.weekdays.map((w) => (
               <div key={w} style={{ textAlign: "center", fontFamily: SANS, fontSize: 11, color: COLORS.oliveSoft }}>
                 {w}
               </div>
             ))}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, minHeight: cursor ? undefined : 260 }}>
             {cells.map((d, i) => {
               const disabled = !d || isPast(d);
               const active = d === selectedDay;
@@ -1511,19 +1451,19 @@ function Booking() {
 
           {selectedDay && (
             <div style={{ marginTop: 20 }}>
-              <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>Свободное время на {dateLabel}</p>
+              <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>{b.freeTime(dateLabel)}</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {TIME_SLOTS.map((t) => {
-                  const passed = slotPassed(t);
-                  const active = t === selectedTime;
+                {TIME_SLOTS.map((slot) => {
+                  const passed = slotPassed(slot);
+                  const active = slot === selectedTime;
                   return (
                     <button
-                      key={t}
+                      key={slot}
                       disabled={passed}
                       className="oro-pick"
                       onClick={() => {
-                        setSelectedTime(t);
-                        setDuration((d) => Math.min(d, maxDurationFrom(t)));
+                        setSelectedTime(slot);
+                        setDuration((d) => Math.min(d, maxDurationFrom(slot)));
                       }}
                       style={{
                         padding: "8px 14px",
@@ -1536,7 +1476,7 @@ function Booking() {
                         cursor: passed ? "default" : "pointer",
                       }}
                     >
-                      {t}
+                      {slot}
                     </button>
                   );
                 })}
@@ -1546,7 +1486,7 @@ function Booking() {
 
           {selectedDay && selectedTime && (
             <div style={{ marginTop: 20 }}>
-              <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>Продолжительность, часов</p>
+              <p style={{ fontFamily: SANS, fontSize: 12, color: COLORS.oliveSoft, marginBottom: 10 }}>{b.duration}</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {DURATIONS.filter((h) => h <= maxDuration).map((h) => (
                   <button
@@ -1570,7 +1510,7 @@ function Booking() {
                 ))}
               </div>
               <p style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.inkSoft, marginTop: 10 }}>
-                {selectedTime}–{endTime} · {duration} {hoursWord(duration)}
+                {selectedTime}–{endTime} · {b.hours(duration)}
               </p>
             </div>
           )}
@@ -1578,21 +1518,21 @@ function Booking() {
 
         <Card>
           <CardTitle color={COLORS.ink} size={22}>
-            Расскажите немного о вашей встрече
+            {b.formTitle}
           </CardTitle>
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <label>
-              {label("Что вы хотите провести?")}
+              {label(b.typeLabel)}
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={inputStyle}>
-                {EVENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                {EVENT_TYPES.map((key) => (
+                  <option key={key} value={key}>
+                    {b.eventTypes[key]}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              {label("Количество гостей (до 15)")}
+              {label(b.guestsLabel)}
               <input
                 type="number"
                 min={1}
@@ -1603,22 +1543,22 @@ function Booking() {
               />
             </label>
             <input
-              placeholder="Ваше имя"
-              aria-label="Ваше имя"
+              placeholder={b.name}
+              aria-label={b.name}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               style={inputStyle}
             />
             <input
-              placeholder="Телефон / удобный способ связи"
-              aria-label="Телефон или удобный способ связи"
+              placeholder={b.contact}
+              aria-label={b.contactAria}
               value={form.contact}
               onChange={(e) => setForm({ ...form, contact: e.target.value })}
               style={inputStyle}
             />
             <textarea
-              placeholder="Комментарий"
-              aria-label="Комментарий"
+              placeholder={b.comment}
+              aria-label={b.comment}
               rows={3}
               value={form.comment}
               onChange={(e) => setForm({ ...form, comment: e.target.value })}
@@ -1638,24 +1578,24 @@ function Booking() {
             >
               {selectedDay && selectedTime ? (
                 <>
-                  Желаемая дата: {dateLabel}, {selectedTime}–{endTime}
+                  {b.desired} {dateLabel}, {selectedTime}–{endTime}
                   <br />
-                  Аренда: <strong>€{totalPrice}</strong> (€{pricePerHour}/час × {duration})
-                  {(form.type === "День рождения" || form.type === "Девичник") && (
+                  {b.rent} <strong>€{totalPrice}</strong> (€{pricePerHour}{b.perHourShort} × {duration})
+                  {TURNKEY_TYPES.includes(form.type) && (
                     <>
                       <br />
-                      Программа под ключ рассчитывается отдельно.
+                      {b.turnkeyNote}
                     </>
                   )}
                 </>
               ) : (
-                "Выберите дату и время в календаре"
+                b.chooseHint
               )}
             </div>
 
             <button
               type="submit"
-              disabled={!canSubmit || submitting}
+              disabled={!canSubmit}
               className={canSubmit ? "oro-btn oro-btn-primary" : undefined}
               style={{
                 marginTop: 4,
@@ -1669,8 +1609,11 @@ function Booking() {
                 cursor: canSubmit ? "pointer" : "default",
               }}
             >
-              {submitting ? "Отправляем..." : "Забронировать"}
+              {b.submit}
             </button>
+            <p style={{ fontFamily: SANS, fontSize: 12, lineHeight: 1.6, color: COLORS.inkSoft, fontWeight: 300, margin: 0, textAlign: "center" }}>
+              {b.submitNote}
+            </p>
           </form>
         </Card>
       </div>
@@ -1706,34 +1649,15 @@ const inputStyle = {
    FAQ — правила + подбор формата
 --------------------------------------------------------- */
 function Faq() {
-  const items = [
-    {
-      q: "Как подтвердить бронирование?",
-      a: "За 3 суток до мероприятия вы подтверждаете бронь, после чего мы высылаем счёт на оплату.",
-    },
-    {
-      q: "Можно прийти пораньше или задержаться?",
-      a: "Да, без доплаты: до 15 минут для индивидуальной работы и до 30 минут для мероприятий. Если задержка больше — оплачивается следующий час.",
-    },
-    {
-      q: "Кто убирает после мероприятия?",
-      a: "Студия должна остаться в том же виде, что и до бронирования — за это отвечает организатор. Если не хочется убирать самим, закажите сервис уборки за €20.",
-    },
-    {
-      q: "Можно ли алкоголь?",
-      a: "Мероприятия с алкоголем согласовываются при бронировании. Курение, включая вейпы, и наркотические вещества в студии запрещены.",
-    },
-    {
-      q: "Можно ли проводить мероприятия регулярно?",
-      a: "Да. Если вы хотите стать постоянным клиентом студии, напишите нам — обсудим удобный формат сотрудничества.",
-    },
-  ];
+  const t = useT();
+  const f = t.faq;
+  const items = f.items;
   return (
     <Section id="faq" bg={COLORS.ivoryDeep}>
       <div style={{ display: "grid", gridTemplateColumns: "1.25fr 0.75fr", gap: 40, alignItems: "start" }} className="oro-two-col">
         <div>
-          <Eyebrow>Полезно знать</Eyebrow>
-          <SectionTitle>Частые вопросы</SectionTitle>
+          <Eyebrow>{f.eyebrow}</Eyebrow>
+          <SectionTitle>{f.title}</SectionTitle>
           <Divider />
           <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
             {items.map(({ q, a }) => (
@@ -1750,14 +1674,13 @@ function Faq() {
 
         <Card style={{ background: COLORS.oliveDark, border: "none", marginTop: 8 }}>
           <CardTitle color={COLORS.ivoryCard} size={26}>
-            Не знаете, какой формат выбрать?
+            {f.helpTitle}
           </CardTitle>
           <p style={{ fontFamily: SANS, fontSize: 14, lineHeight: 1.75, color: "rgba(251,248,242,0.82)", fontWeight: 300, margin: "0 0 24px" }}>
-            Расскажите, что хотите отметить или провести, сколько будет гостей и какое настроение хочется создать —
-            поможем подобрать формат.
+            {f.helpText}
           </p>
-          <Button href={WA_FORMAT} light external>
-            Подобрать формат
+          <Button href={whatsapp(t.wa.format)} light external>
+            {f.helpCta}
           </Button>
         </Card>
       </div>
@@ -1769,6 +1692,8 @@ function Faq() {
    FINAL CTA
 --------------------------------------------------------- */
 function FinalCta() {
+  const t = useT();
+  const f = t.final;
   return (
     <Section
       id="final"
@@ -1781,10 +1706,9 @@ function FinalCta() {
       }
     >
       <div style={{ textAlign: "center" }}>
-        <Eyebrow>Здесь всегда что-то происходит</Eyebrow>
+        <Eyebrow>{f.eyebrow}</Eyebrow>
         <p style={{ fontFamily: SANS, fontSize: 15, lineHeight: 1.8, color: COLORS.inkSoft, fontWeight: 300, margin: "0 auto 26px", maxWidth: 560 }}>
-          Сегодня — консультация, завтра — женская встреча, в выходные — день рождения или девичник. ORO Studio каждый
-          раз становится особенной благодаря людям, которые сюда приходят.
+          {f.text}
         </p>
         <h2
           style={{
@@ -1796,15 +1720,15 @@ function FinalCta() {
             margin: "0 0 18px",
           }}
         >
-          Ваш следующий красивый вечер <span style={{ color: COLORS.olive, fontStyle: "italic" }}>может начаться здесь</span>
+          {f.titleA}<span style={{ color: COLORS.olive, fontStyle: "italic" }}>{f.titleB}</span>
         </h2>
         <p style={{ fontFamily: SANS, fontSize: 15, lineHeight: 1.7, color: COLORS.inkSoft, fontWeight: 300, margin: "0 auto 34px", maxWidth: 520 }}>
-          Выберите дату, расскажите о своей идее — и мы поможем превратить её в настоящее событие.
+          {f.sub}
         </p>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
-          <Button href="#booking">Забронировать студию</Button>
+          <Button href="#booking">{t.common.bookStudio}</Button>
           <Button href="#booking" variant="secondary">
-            Посмотреть календарь
+            {t.common.seeCalendar}
           </Button>
         </div>
       </div>
@@ -1816,11 +1740,15 @@ function FinalCta() {
    FOOTER
 --------------------------------------------------------- */
 function Footer() {
+  const t = useT();
+  const f = t.footer;
+  const [year, setYear] = useState(2026);
+  useEffect(() => setYear(new Date().getFullYear()), []);
   const social = [
-    { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/oro_studio_tln" },
+    { icon: Instagram, label: "Instagram", href: CONTACT.instagram },
     { icon: Phone, label: "WhatsApp", href: `https://wa.me/${PHONE_RAW}` },
-    { icon: Send, label: "Telegram", href: "https://t.me/oro_studio_tallinn" },
-    { icon: Facebook, label: "Facebook", href: "https://www.facebook.com/share/1DtTPKb5Eu/" },
+    { icon: Send, label: "Telegram", href: CONTACT.telegram },
+    { icon: Facebook, label: "Facebook", href: CONTACT.facebook },
   ];
   const row = { display: "flex", alignItems: "center", gap: 10, marginBottom: 10 };
   const text = { fontFamily: SANS, fontSize: 13.5, color: "rgba(251,248,242,0.8)", fontWeight: 300, textDecoration: "none" };
@@ -1843,7 +1771,7 @@ function Footer() {
             <Logo size={24} oroColor={COLORS.goldLight} studioColor={COLORS.ivoryDeep} />
           </div>
           <p style={{ fontFamily: SANS, fontSize: 13, color: "rgba(251,248,242,0.6)", lineHeight: 1.8, fontWeight: 300, maxWidth: 280, margin: "0 0 20px" }}>
-            Пространство для встреч, мероприятий и красивых событий.
+            {f.tagline}
           </p>
           <a
             href="#booking"
@@ -1859,16 +1787,16 @@ function Footer() {
               display: "inline-block",
             }}
           >
-            Забронировать
+            {t.common.book}
           </a>
         </div>
 
         <div>
-          <h4 style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, margin: "0 0 16px", fontWeight: 500 }}>КОНТАКТЫ</h4>
+          <h4 style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, margin: "0 0 16px", fontWeight: 500 }}>{f.contacts}</h4>
           <div style={row}>
             <MapPin size={15} color={COLORS.oliveSoft} />
-            <a href="https://maps.google.com/?q=Narva+mnt+4,+Tallinn" target="_blank" rel="noopener noreferrer" style={text}>
-              Narva mnt 4, Таллинн — самое сердце города
+            <a href={CONTACT.mapsUrl} target="_blank" rel="noopener noreferrer" style={text}>
+              {f.address}
             </a>
           </div>
           <div style={row}>
@@ -1885,18 +1813,18 @@ function Footer() {
           </div>
           <div style={row}>
             <Instagram size={15} color={COLORS.oliveSoft} />
-            <a href="https://www.instagram.com/oro_studio_tln" target="_blank" rel="noopener noreferrer" style={text}>
+            <a href={CONTACT.instagram} target="_blank" rel="noopener noreferrer" style={text}>
               @oro_studio_tln
             </a>
           </div>
           <div style={{ ...row, marginBottom: 0 }}>
             <Clock size={15} color={COLORS.oliveSoft} />
-            <span style={text}>Ежедневно, по бронированию</span>
+            <span style={text}>{f.hours}</span>
           </div>
         </div>
 
         <div>
-          <h4 style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, margin: "0 0 16px", fontWeight: 500 }}>МЫ В СОЦСЕТЯХ</h4>
+          <h4 style={{ fontFamily: SANS, fontSize: 12, letterSpacing: "0.1em", color: COLORS.goldLight, margin: "0 0 16px", fontWeight: 500 }}>{f.social}</h4>
           <div style={{ display: "flex", gap: 12 }}>
             {social.map(({ icon: Icon, label, href }) => (
               <a
@@ -1927,7 +1855,7 @@ function Footer() {
       </div>
 
       <p style={{ fontFamily: SANS, fontSize: 12, color: "rgba(251,248,242,0.4)", textAlign: "center", margin: "26px 0 0" }}>
-        © {new Date().getFullYear()} ORO Studio. Все права защищены.
+        © {year} ORO Studio. {f.rights}
       </p>
     </footer>
   );
@@ -1936,8 +1864,9 @@ function Footer() {
 /* ---------------------------------------------------------
    APP
 --------------------------------------------------------- */
-export default function App() {
+export default function App({ dict }) {
   return (
+    <LangContext.Provider value={dict}>
     <div style={{ background: COLORS.ivory, minHeight: "100vh" }}>
       <style>{`
         * { box-sizing: border-box; }
@@ -2051,5 +1980,6 @@ export default function App() {
       </main>
       <Footer />
     </div>
+    </LangContext.Provider>
   );
 }
