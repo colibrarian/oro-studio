@@ -493,6 +493,9 @@ function Nav() {
 // On top of it: a slow light sweep clipped to the logo's shape (CSS mask) and a few
 // twinkling glints on the gold letters. Both stop for prefers-reduced-motion.
 const HERO_LOGO = "oro-logo";
+// "sweep": a light band crosses the logo + glints on the letters.
+// "halo":  a soft light slowly circles along the gold lines, letters gently glow.
+const HERO_SHINE = "sweep";
 const HERO_GLINTS = [
   { left: "13%", top: "41%", size: 26, delay: "0.6s" },
   { left: "49%", top: "36%", size: 32, delay: "2.4s" },
@@ -512,7 +515,7 @@ function HeroBrand({ label }) {
   return (
     <div className="oro-hero-brand">
       <picture style={{ display: "block" }}>
-        <source type="image/webp" srcSet={webpSet(HERO_LOGO)} sizes="(max-width: 860px) 340px, 560px" />
+        <source type="image/webp" srcSet={webpSet(HERO_LOGO)} sizes="(max-width: 860px) 280px, 440px" />
         <img
           src={asset(`images/${HERO_LOGO}.png`)}
           alt={label}
@@ -524,8 +527,14 @@ function HeroBrand({ label }) {
           style={{ width: "100%", height: "auto", display: "block" }}
         />
       </picture>
-      <div className="oro-logo-shine" aria-hidden="true" style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }} />
-      {HERO_GLINTS.map((g, i) => (
+      {HERO_SHINE === "halo" ? (
+        <div className="oro-logo-halo" aria-hidden="true" style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }}>
+          <div className="oro-logo-halo-light" />
+        </div>
+      ) : (
+        <div className="oro-logo-shine" aria-hidden="true" style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }} />
+      )}
+      {HERO_SHINE === "sweep" && HERO_GLINTS.map((g, i) => (
         <span key={i} className="oro-logo-glint" aria-hidden="true" style={{ left: g.left, top: g.top, animationDelay: g.delay }}>
           <Glint size={g.size} />
         </span>
@@ -551,8 +560,8 @@ function Hero() {
           maxWidth: 1180,
           margin: "0 auto",
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 48,
+          gridTemplateColumns: "1.1fr 0.9fr",
+          gap: 60,
           alignItems: "center",
           position: "relative",
         }}
@@ -2122,7 +2131,7 @@ export default function App({ dict }) {
           border-radius: 16px;
           padding: 18px 22px;
         }
-        .oro-hero-brand { position: relative; width: 100%; max-width: 560px; margin: 0 auto; }
+        .oro-hero-brand { position: relative; width: 100%; max-width: 440px; margin: 0 auto; }
         .oro-logo-shine {
           position: absolute; inset: 0; pointer-events: none;
           -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
@@ -2148,8 +2157,23 @@ export default function App({ dict }) {
           80% { transform: translate(-50%, -50%) scale(1) rotate(45deg); opacity: 1; }
           90% { transform: translate(-50%, -50%) scale(0.2) rotate(90deg); opacity: 0; }
         }
+        .oro-logo-halo {
+          position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+          -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+          -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+          mix-blend-mode: screen;
+          animation: oro-halo-breathe 5s ease-in-out infinite;
+        }
+        .oro-logo-halo-light {
+          position: absolute; inset: -25%;
+          background: conic-gradient(from 0deg, transparent 0deg, rgba(255,244,215,0) 250deg, rgba(255,244,215,0.75) 320deg, rgba(255,250,235,0.9) 335deg, rgba(255,244,215,0) 360deg),
+                      radial-gradient(circle at 50% 50%, rgba(255,236,190,0.35) 0%, rgba(255,236,190,0) 45%);
+          animation: oro-halo-spin 9s linear infinite;
+        }
+        @keyframes oro-halo-spin { to { transform: rotate(360deg); } }
+        @keyframes oro-halo-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) {
-          .oro-logo-shine, .oro-logo-glint { animation: none; opacity: 0; }
+          .oro-logo-shine, .oro-logo-glint, .oro-logo-halo, .oro-logo-halo-light { animation: none; opacity: 0; }
         }
         @media (max-width: 1000px) {
           .oro-four-col { grid-template-columns: repeat(2, 1fr) !important; }
@@ -2161,7 +2185,7 @@ export default function App({ dict }) {
           .oro-hero-grid > *:first-child { order: 2; }
           .oro-hero-grid > *:last-child { order: 1; }
           .oro-about-grid > *:first-child { max-width: 420px; }
-          .oro-hero-brand { max-width: 340px !important; }
+          .oro-hero-brand { max-width: 280px !important; }
         }
         @media (max-width: 760px) {
           .oro-footer-grid { grid-template-columns: 1fr !important; }
