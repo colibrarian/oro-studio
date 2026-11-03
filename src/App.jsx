@@ -513,7 +513,7 @@ function Glint({ size }) {
 function HeroBrand({ label }) {
   const maskUrl = `url("${asset(`images/w/${HERO_LOGO}-1280.webp`)}")`;
   return (
-    <div className="oro-hero-brand">
+    <div className={HERO_SHINE === "halo" ? "oro-hero-brand oro-hero-brand--halo" : "oro-hero-brand"}>
       <picture style={{ display: "block" }}>
         <source type="image/webp" srcSet={webpSet(HERO_LOGO)} sizes="(max-width: 860px) 280px, 440px" />
         <img
@@ -2172,8 +2172,39 @@ export default function App({ dict }) {
         }
         @keyframes oro-halo-spin { to { transform: rotate(360deg); } }
         @keyframes oro-halo-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+        /* Halo variant: the whole logo leans slightly toward the moving light.
+           Same 9s period as .oro-logo-halo-light; the light's peak starts at 335deg (conic 0deg = top). */
+        .oro-hero-brand--halo { animation: oro-halo-tilt 9s linear infinite; will-change: transform; }
+        @keyframes oro-halo-tilt {
+          0.0% { transform: perspective(1100px) rotateX(-6.34deg) rotateY(2.96deg); }
+          4.167% { transform: perspective(1100px) rotateX(-6.89deg) rotateY(1.22deg); }
+          8.333% { transform: perspective(1100px) rotateX(-6.97deg) rotateY(-0.61deg); }
+          12.5% { transform: perspective(1100px) rotateX(-6.58deg) rotateY(-2.39deg); }
+          16.667% { transform: perspective(1100px) rotateX(-5.73deg) rotateY(-4.02deg); }
+          20.833% { transform: perspective(1100px) rotateX(-4.50deg) rotateY(-5.36deg); }
+          25.0% { transform: perspective(1100px) rotateX(-2.96deg) rotateY(-6.34deg); }
+          29.167% { transform: perspective(1100px) rotateX(-1.22deg) rotateY(-6.89deg); }
+          33.333% { transform: perspective(1100px) rotateX(0.61deg) rotateY(-6.97deg); }
+          37.5% { transform: perspective(1100px) rotateX(2.39deg) rotateY(-6.58deg); }
+          41.667% { transform: perspective(1100px) rotateX(4.02deg) rotateY(-5.73deg); }
+          45.833% { transform: perspective(1100px) rotateX(5.36deg) rotateY(-4.50deg); }
+          50.0% { transform: perspective(1100px) rotateX(6.34deg) rotateY(-2.96deg); }
+          54.167% { transform: perspective(1100px) rotateX(6.89deg) rotateY(-1.22deg); }
+          58.333% { transform: perspective(1100px) rotateX(6.97deg) rotateY(0.61deg); }
+          62.5% { transform: perspective(1100px) rotateX(6.58deg) rotateY(2.39deg); }
+          66.667% { transform: perspective(1100px) rotateX(5.73deg) rotateY(4.02deg); }
+          70.833% { transform: perspective(1100px) rotateX(4.50deg) rotateY(5.36deg); }
+          75.0% { transform: perspective(1100px) rotateX(2.96deg) rotateY(6.34deg); }
+          79.167% { transform: perspective(1100px) rotateX(1.22deg) rotateY(6.89deg); }
+          83.333% { transform: perspective(1100px) rotateX(-0.61deg) rotateY(6.97deg); }
+          87.5% { transform: perspective(1100px) rotateX(-2.39deg) rotateY(6.58deg); }
+          91.667% { transform: perspective(1100px) rotateX(-4.02deg) rotateY(5.73deg); }
+          95.833% { transform: perspective(1100px) rotateX(-5.36deg) rotateY(4.50deg); }
+          100.0% { transform: perspective(1100px) rotateX(-6.34deg) rotateY(2.96deg); }
+        }
         @media (prefers-reduced-motion: reduce) {
           .oro-logo-shine, .oro-logo-glint, .oro-logo-halo, .oro-logo-halo-light { animation: none; opacity: 0; }
+          .oro-hero-brand--halo { animation: none; }
         }
         @media (max-width: 1000px) {
           .oro-four-col { grid-template-columns: repeat(2, 1fr) !important; }
