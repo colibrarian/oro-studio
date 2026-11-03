@@ -489,47 +489,47 @@ function Nav() {
 /* ---------------------------------------------------------
    HERO
 --------------------------------------------------------- */
-// Hero visual: the studio logo. Until the real logo file is added, a drawn
-// version of the mark (flower of life + ORO studio) is shown.
-// When the file is ready, put it in public/images/ and set HERO_LOGO, e.g. "images/logo.svg".
-const HERO_LOGO = null;
+// Hero visual: the studio logo (public/images/oro-logo.png + WebP 640/1280 in images/w/).
+// On top of it: a slow light sweep clipped to the logo's shape (CSS mask) and a few
+// twinkling glints on the gold letters. Both stop for prefers-reduced-motion.
+const HERO_LOGO = "oro-logo";
+const HERO_GLINTS = [
+  { left: "13%", top: "41%", size: 26, delay: "0.6s" },
+  { left: "49%", top: "36%", size: 32, delay: "2.4s" },
+  { left: "89%", top: "47%", size: 24, delay: "4.1s" },
+];
+
+function Glint({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 0 C12.8 8.5 15.5 11.2 24 12 C15.5 12.8 12.8 15.5 12 24 C11.2 15.5 8.5 12.8 0 12 C8.5 11.2 11.2 8.5 12 0 Z" fill="#FFF8E6" />
+    </svg>
+  );
+}
 
 function HeroBrand({ label }) {
-  if (HERO_LOGO) {
-    return (
-      <div className="oro-hero-brand" style={{ display: "flex", justifyContent: "center" }}>
-        <img src={asset(HERO_LOGO)} alt={label} style={{ width: "100%", maxWidth: 420, height: "auto", display: "block" }} />
-      </div>
-    );
-  }
+  const maskUrl = `url("${asset(`images/w/${HERO_LOGO}-1280.webp`)}")`;
   return (
-    <div
-      className="oro-hero-brand"
-      role="img"
-      aria-label={label}
-      style={{ position: "relative", width: "100%", maxWidth: 420, aspectRatio: "1", margin: "0 auto" }}
-    >
-      <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${COLORS.ivoryCard} 0%, ${COLORS.ivoryDeep} 70%)` }} />
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <FlowerOfLife size={420} opacity={0.55} strokeWidth={1.2} />
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(64px, 9vw, 104px)", lineHeight: 1, letterSpacing: "0.08em", color: COLORS.gold, background: "rgba(251,248,242,0.82)", padding: "6px 18px 2px", borderRadius: 8 }}>
-          ORO
+    <div className="oro-hero-brand">
+      <picture style={{ display: "block" }}>
+        <source type="image/webp" srcSet={webpSet(HERO_LOGO)} sizes="(max-width: 860px) 340px, 560px" />
+        <img
+          src={asset(`images/${HERO_LOGO}.png`)}
+          alt={label}
+          width="800"
+          height="800"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+          style={{ width: "100%", height: "auto", display: "block" }}
+        />
+      </picture>
+      <div className="oro-logo-shine" aria-hidden="true" style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }} />
+      {HERO_GLINTS.map((g, i) => (
+        <span key={i} className="oro-logo-glint" aria-hidden="true" style={{ left: g.left, top: g.top, animationDelay: g.delay }}>
+          <Glint size={g.size} />
         </span>
-        <span style={{ fontFamily: SERIF, fontSize: "clamp(22px, 3vw, 30px)", color: COLORS.oliveDark, marginTop: 6, background: "rgba(251,248,242,0.82)", padding: "0 12px", borderRadius: 6 }}>
-          studio
-        </span>
-      </div>
+      ))}
     </div>
   );
 }
@@ -546,17 +546,13 @@ function Hero() {
         background: `radial-gradient(ellipse at top right, ${COLORS.ivoryDeep} 0%, ${COLORS.ivory} 60%)`,
       }}
     >
-      <div style={{ position: "absolute", top: -60, right: -60, pointerEvents: "none" }}>
-        <FlowerOfLife size={420} opacity={0.14} />
-      </div>
-
       <div
         style={{
           maxWidth: 1180,
           margin: "0 auto",
           display: "grid",
-          gridTemplateColumns: "1.1fr 0.9fr",
-          gap: 60,
+          gridTemplateColumns: "1fr 1fr",
+          gap: 48,
           alignItems: "center",
           position: "relative",
         }}
@@ -2126,6 +2122,35 @@ export default function App({ dict }) {
           border-radius: 16px;
           padding: 18px 22px;
         }
+        .oro-hero-brand { position: relative; width: 100%; max-width: 560px; margin: 0 auto; }
+        .oro-logo-shine {
+          position: absolute; inset: 0; pointer-events: none;
+          -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+          -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+          background: linear-gradient(105deg, transparent 38%, rgba(255,240,205,0.1) 44%, rgba(255,244,215,0.55) 50%, rgba(255,240,205,0.1) 56%, transparent 62%);
+          background-size: 300% 100%;
+          background-position: 120% 0;
+          mix-blend-mode: screen;
+          animation: oro-shine 6.5s ease-in-out 0.8s infinite;
+        }
+        @keyframes oro-shine {
+          0% { background-position: 120% 0; }
+          45%, 100% { background-position: -20% 0; }
+        }
+        .oro-logo-glint {
+          position: absolute; pointer-events: none; line-height: 0;
+          transform: translate(-50%, -50%) scale(0) rotate(0deg);
+          filter: drop-shadow(0 0 6px rgba(255,236,190,0.95));
+          animation: oro-glint 6.5s ease-in-out infinite;
+        }
+        @keyframes oro-glint {
+          0%, 70%, 100% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; }
+          80% { transform: translate(-50%, -50%) scale(1) rotate(45deg); opacity: 1; }
+          90% { transform: translate(-50%, -50%) scale(0.2) rotate(90deg); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .oro-logo-shine, .oro-logo-glint { animation: none; opacity: 0; }
+        }
         @media (max-width: 1000px) {
           .oro-four-col { grid-template-columns: repeat(2, 1fr) !important; }
           .oro-addons { grid-template-columns: 1fr 1fr !important; }
@@ -2136,7 +2161,7 @@ export default function App({ dict }) {
           .oro-hero-grid > *:first-child { order: 2; }
           .oro-hero-grid > *:last-child { order: 1; }
           .oro-about-grid > *:first-child { max-width: 420px; }
-          .oro-hero-brand { max-width: 240px !important; }
+          .oro-hero-brand { max-width: 340px !important; }
         }
         @media (max-width: 760px) {
           .oro-footer-grid { grid-template-columns: 1fr !important; }
