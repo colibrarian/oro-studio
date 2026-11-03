@@ -495,7 +495,7 @@ function Nav() {
 const HERO_LOGO = "oro-logo";
 // "sweep": a light band crosses the logo + glints on the letters.
 // "halo":  a soft light slowly circles along the gold lines, letters gently glow.
-const HERO_SHINE = "sweep";
+const HERO_SHINE = "halo";
 const HERO_GLINTS = [
   { left: "13%", top: "41%", size: 26, delay: "0.6s" },
   { left: "49%", top: "36%", size: 32, delay: "2.4s" },
