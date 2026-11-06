@@ -19,7 +19,7 @@ const et = {
     format: "Tere! Palun aidake mul valida ORO Studios sobiv ürituse formaat.",
     turnkey: "Tere! Sooviksin teada, kui palju maksab võtmed-kätte üritus ORO Studios.",
     regular: "Tere! Sooviksin ORO Studios regulaarselt üritusi korraldada.",
-    booking: ({ type, date, time, hours, guests, name, contact, comment, price }) =>
+    booking: ({ type, date, time, hours, guests, name, email, contact, comment, price }) =>
       [
         "Tere! Sooviksin ORO Studios aega broneerida.",
         `Formaat: ${type}`,
@@ -27,7 +27,8 @@ const et = {
         `Kellaaeg: ${time} (${hours})`,
         `Külalisi: ${guests}`,
         `Nimi: ${name}`,
-        `Kontakt: ${contact}`,
+        `E-post: ${email}`,
+        contact ? `Kontakt: ${contact}` : null,
         comment ? `Kommentaar: ${comment}` : null,
         `Rendi hind kalkulaatori järgi: €${price}`,
       ]
@@ -282,13 +283,15 @@ const et = {
     typeLabel: "Mida soovid korraldada?",
     guestsLabel: "Külaliste arv (kuni 15)",
     name: "Sinu nimi",
-    contact: "Telefon / sobiv kontaktviis",
-    contactAria: "Telefon või sobiv kontaktviis",
+    email: "E-post (kinnituse ja arve jaoks)",
+    contact: "Telefon (soovi korral)",
+    contactAria: "Telefon, soovi korral",
     comment: "Kommentaar",
     desired: "Soovitud aeg:",
     rent: "Rent:",
     perHourShort: "/tund",
     turnkeyNote: "Võtmed-kätte programmi hind arvutatakse eraldi.",
+    prepayNote: "Broneering kinnitatakse pärast tagastamatut ettemaksu €20, arve saadame e-postile.",
     chooseHint: "Vali kalendrist kuupäev ja kellaaeg",
     submit: "Broneeri WhatsAppi kaudu",
     submitNote: "Avaneb WhatsApp valmis sõnumiga – jääb vaid vajutada „Saada“.",
@@ -296,7 +299,7 @@ const et = {
     doneText:
       "Avasime WhatsAppi valmis sõnumiga. Saada see ära ja me võtame sinuga ühendust, et broneering kinnitada ja arve saata.",
     submitCal: "Broneeri",
-    submitNoteCal: "Aeg broneeritakse kohe meie kalendris. Võtame sinuga ühendust, et broneering kinnitada.",
+    submitNoteCal: "Aeg broneeritakse kohe meie kalendris ja sinu e-postile tuleb kiri broneeringu üksikasjadega.",
     sending: "Saadame…",
     loadingSlots: "Kontrollime vabu aegu…",
     slotsError: "Vabade aegade laadimine ebaõnnestus. Päringu saad saata WhatsAppi kaudu, kinnitame aja käsitsi.",
@@ -307,7 +310,7 @@ const et = {
     sendErrorCta: "Saada WhatsAppi kaudu",
     doneTitleCal: (name) => `Aitäh, ${name}! Päring on vastu võetud`,
     doneTextCal:
-      "Broneerisime selle aja sinu jaoks esialgselt ja võtame peagi ühendust, et broneering kinnitada ja arve saata.",
+      "Broneerisime selle aja sinu jaoks esialgselt ja saatsime üksikasjad sinu e-postile. Broneering kinnitatakse pärast tagastamatut ettemaksu €20, arve saadame eraldi.",
     reopen: "Ava WhatsApp uuesti",
     again: "Saada uus päring",
   },
@@ -336,7 +339,7 @@ const et = {
       },
       {
         q: "Kuidas broneeringut kinnitada?",
-        a: "Kinnitad broneeringu 3 päeva enne üritust, misjärel saadame sulle arve.",
+        a: "Broneering kinnitatakse tagastamatu ettemaksuga €20: pärast päringut saadame arve sinu e-postile. 3 päeva enne üritust kinnitad broneeringu, misjärel saadame sulle arve.",
       },
       {
         q: "Kas võib tulla varem või kauemaks jääda?",
