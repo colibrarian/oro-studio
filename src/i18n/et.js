@@ -291,7 +291,7 @@ const et = {
     rent: "Rent:",
     perHourShort: "/tund",
     turnkeyNote: "Võtmed-kätte programmi hind arvutatakse eraldi.",
-    prepayNote: "Broneering kinnitatakse pärast tagastamatut ettemaksu €20, arve saadame e-postile.",
+    prepayNote: "Broneering kinnitatakse pärast tagastamatut ettemaksu €20 (arvestatakse rendihinna sisse), arve saadame e-postile.",
     chooseHint: "Vali kalendrist kuupäev ja kellaaeg",
     submit: "Broneeri WhatsAppi kaudu",
     submitNote: "Avaneb WhatsApp valmis sõnumiga – jääb vaid vajutada „Saada“.",
@@ -310,7 +310,7 @@ const et = {
     sendErrorCta: "Saada WhatsAppi kaudu",
     doneTitleCal: (name) => `Aitäh, ${name}! Päring on vastu võetud`,
     doneTextCal:
-      "Broneerisime selle aja sinu jaoks esialgselt ja saatsime üksikasjad sinu e-postile. Broneering kinnitatakse pärast tagastamatut ettemaksu €20, arve saadame eraldi.",
+      "Broneerisime selle aja sinu jaoks esialgselt ja saatsime üksikasjad sinu e-postile. Broneering kinnitatakse pärast tagastamatut ettemaksu €20, mis arvestatakse rendihinna sisse. Arve saadame eraldi.",
     reopen: "Ava WhatsApp uuesti",
     again: "Saada uus päring",
   },
@@ -339,7 +339,7 @@ const et = {
       },
       {
         q: "Kuidas broneeringut kinnitada?",
-        a: "Broneering kinnitatakse tagastamatu ettemaksuga €20: pärast päringut saadame arve sinu e-postile. 3 päeva enne üritust kinnitad broneeringu, misjärel saadame sulle arve.",
+        a: "Broneering kinnitatakse tagastamatu ettemaksuga €20, mis arvestatakse rendihinna sisse: pärast päringut saadame arve sinu e-postile. 3 päeva enne üritust kinnitad broneeringu, misjärel saadame sulle arve ülejäänud summale.",
       },
       {
         q: "Kas võib tulla varem või kauemaks jääda?",
