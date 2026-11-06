@@ -1765,12 +1765,11 @@ function Booking() {
                       {b.turnkeyNote}
                     </>
                   )}
-                  <br />
-                  {b.prepayNote}
                 </>
               ) : (
                 b.chooseHint
               )}
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${COLORS.oliveSoft}`, fontWeight: 500 }}>{b.prepayNote}</div>
             </div>
 
             <button
