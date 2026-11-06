@@ -25,7 +25,7 @@ const CONFIG = {
   EVENT_COLOR: CalendarApp.EventColor.YELLOW, // заявки жёлтые, чтобы отличать от подтверждённых
   BUFFER_BEFORE_HOURS: 1, // столько часов перед каждым событием сайт показывает занятыми
   BUFFER_AFTER_HOURS: 1, // и столько после
-  PREPAYMENT_EUR: 20, // невозвратная часть предоплаты при отмене, упоминается в письме клиенту
+  PREPAYMENT_EUR: 20, // сколько не возвращается при отмене после оплаты, упоминается в письме клиенту
   SEND_CLIENT_EMAIL: true, // письмо-подтверждение клиенту
 };
 
@@ -122,7 +122,7 @@ function book_(b) {
       `Аренда по калькулятору: €${price}`,
       `Язык сайта: ${lang === "ru" ? "русский" : "эстонский"}`,
       "",
-      `Заявка с сайта, ещё НЕ подтверждена. Клиенту ушло письмо: бронь подтверждается после предоплаты по счёту студии, при отмене €${CONFIG.PREPAYMENT_EUR} не возвращаются.`,
+      `Заявка с сайта, ещё НЕ подтверждена. Клиенту ушло письмо: бронь подтверждается после оплаты счёта за аренду, при отмене €${CONFIG.PREPAYMENT_EUR} не возвращаются.`,
       "Если бронь не состоится, просто удалите это событие: время снова станет свободным на сайте.",
     ]
       .filter((line) => line !== "")
@@ -212,7 +212,7 @@ function clientEmail_(lang, o) {
         `Гостей: ${o.guests}`,
         `Аренда по калькулятору: €${o.price}`,
         "",
-        `Бронь подтверждается после предоплаты: счёт мы пришлём отдельным письмом. Если вы отмените бронь, €${pre} из предоплаты не возвращаются.`,
+        `Бронь подтверждается после оплаты аренды: счёт мы пришлём отдельным письмом. Если вы отмените бронь, оплату вернём, кроме €${pre}.`,
         "",
         "Если есть вопросы или нужно что-то изменить, просто ответьте на это письмо или напишите нам в WhatsApp: +372 5336 3795.",
         "",
@@ -235,7 +235,7 @@ function clientEmail_(lang, o) {
       `Külalisi: ${o.guests}`,
       `Rendi hind kalkulaatori järgi: €${o.price}`,
       "",
-      `Broneering kinnitatakse pärast ettemaksu tasumist: arve saadame eraldi kirjaga. Broneeringu tühistamisel jääb ettemaksust €${pre} tagastamata.`,
+      `Broneering kinnitatakse pärast rendi tasumist: arve saadame eraldi kirjaga. Broneeringu tühistamisel tagastame makse, välja arvatud €${pre}.`,
       "",
       "Kui sul on küsimusi või soovid midagi muuta, vasta lihtsalt sellele kirjale või kirjuta meile WhatsAppis: +372 5336 3795.",
       "",
