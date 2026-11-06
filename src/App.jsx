@@ -1278,7 +1278,8 @@ function buildCalendar(year, month) {
   return cells;
 }
 
-const EMPTY_FORM = { type: EVENT_TYPES[0], guests: 2, name: "", contact: "", comment: "" };
+const EMPTY_FORM = { type: EVENT_TYPES[0], guests: 2, name: "", email: "", contact: "", comment: "" };
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function Booking() {
   const t = useT();
@@ -1371,7 +1372,7 @@ function Booking() {
     setDuration(1);
   };
 
-  const canSubmit = selectedDay && selectedTime && form.name.trim() && form.contact.trim() && sendState !== "sending";
+  const canSubmit = selectedDay && selectedTime && form.name.trim() && EMAIL_RE.test(form.email.trim()) && sendState !== "sending";
 
   const dateLabel = selectedDay && cursor ? b.dateLabel(selectedDay, cursor.month, cursor.year) : null;
   const typeLabel = b.eventTypes[form.type];
@@ -1385,6 +1386,7 @@ function Booking() {
         hours: b.hours(duration),
         guests,
         name: form.name.trim(),
+        email: form.email.trim(),
         contact: form.contact.trim(),
         comment: form.comment.trim(),
         price: totalPrice,
@@ -1414,6 +1416,7 @@ function Booking() {
         type: typeLabel,
         guests,
         name: form.name.trim(),
+        email: form.email.trim(),
         contact: form.contact.trim(),
         comment: form.comment.trim(),
         lang: t.lang,
@@ -1704,6 +1707,16 @@ function Booking() {
               style={inputStyle}
             />
             <input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder={b.email}
+              aria-label={b.email}
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              style={inputStyle}
+            />
+            <input
               placeholder={b.contact}
               aria-label={b.contactAria}
               value={form.contact}
@@ -1752,6 +1765,8 @@ function Booking() {
                       {b.turnkeyNote}
                     </>
                   )}
+                  <br />
+                  {b.prepayNote}
                 </>
               ) : (
                 b.chooseHint
