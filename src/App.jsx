@@ -1414,6 +1414,7 @@ function Booking() {
         start: hourOf(selectedTime),
         hours: duration,
         type: typeLabel,
+        typeKey: form.type,
         guests,
         name: form.name.trim(),
         email: form.email.trim(),

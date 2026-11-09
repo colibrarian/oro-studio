@@ -27,6 +27,28 @@ const CONFIG = {
   BUFFER_AFTER_HOURS: 1, // и столько после
   PREPAYMENT_EUR: 20, // сколько не возвращается при отмене после оплаты, упоминается в письме клиенту
   SEND_CLIENT_EMAIL: true, // письмо-подтверждение клиенту
+  // Для фирменного письма. После переезда на свой домен поменять SITE_URL и LOGO_URL.
+  SITE_URL: "https://colibrarian.github.io/oro-studio/",
+  LOGO_URL: "https://colibrarian.github.io/oro-studio/images/email/oro-logo-240.png",
+  PHONE_DISPLAY: "+372 5336 3795",
+  PHONE_RAW: "37253363795",
+  ADDRESS: "Narva mnt 4, Tallinn",
+
+  // ---- Автосчёт клиенту (PDF во вложении к письму-подтверждению) ----
+  // Пока IBAN пустой, счёт НЕ отправляется: клиент получает обычное подтверждение.
+  INVOICE: {
+    ENABLED: true,
+    SELLER_NAME: "Flor Da Vida OÜ", // юр. название фирмы
+    REG_CODE: "17254532", // регистрационный код
+    VAT_NO: "", // KMKR, если фирма плательщик НДС; иначе пусто
+    VAT_RATE: 0, // 0.24, если плательщик НДС (цены сайта считаются включающими НДС); иначе 0
+    SELLER_ADDRESS: "Narva mnt 4, 10117 Tallinn",
+    IBAN: "EE46 2200 2210 9167 5087",
+    BANK: "Swedbank",
+    PREFIX: "ORO", // номер счёта: ORO-2026-001. Отдельная серия, чтобы не пересекаться с бухгалтерией
+    DUE_DAYS: 3, // срок оплаты, но не позже дня мероприятия
+    SKIP_TYPES: ["birthday", "bachelorette"], // под ключ: цена считается отдельно, счёт Наталья делает вручную
+  },
 };
 
 /* ---------------- HTTP ---------------- */
@@ -87,6 +109,7 @@ function book_(b) {
   const contact = clean_(b.contact, 120);
   const comment = clean_(b.comment, 1000);
   const type = clean_(b.type, 80);
+  const typeKey = clean_(b.typeKey, 30);
   const guests = Math.min(15, Math.max(1, Number(b.guests) || 1));
   const lang = b.lang === "ru" ? "ru" : "et";
 
@@ -133,19 +156,46 @@ function book_(b) {
       ev.setColor(CONFIG.EVENT_COLOR);
     } catch (e) {}
 
+    const order = { name, email, type, date, startHour, hours, guests, price, pricePerHour: pricePerHour_(guests), start };
+
+    // Счёт: номер, PDF, запись в таблицу. Если что-то не так, заявка всё равно принимается.
+    let invoice = null;
+    let invoiceNote = "";
+    if (CONFIG.SEND_CLIENT_EMAIL && invoiceReady_() && CONFIG.INVOICE.SKIP_TYPES.indexOf(typeKey) === -1) {
+      try {
+        invoice = makeInvoice_(lang, order);
+        ev.setDescription(details + `\n\nСчёт ${invoice.number} на €${price} отправлен клиенту, срок оплаты ${invoice.dueText}.`);
+        invoiceNote = `\n\nСчёт ${invoice.number} на €${price} отправлен клиенту (копия во вложении), срок оплаты ${invoice.dueText}.`;
+      } catch (e) {
+        console.error("invoice failed: " + e);
+        invoiceNote = "\n\nАвтосчёт создать не удалось, выставьте счёт вручную.";
+      }
+    } else if (invoiceReady_()) {
+      invoiceNote = "\n\nАвтосчёт не отправлялся (программа под ключ), выставьте счёт вручную.";
+    }
+
     MailApp.sendEmail({
       to: CONFIG.NOTIFY_EMAIL,
       subject: `Новая заявка ORO Studio: ${date} ${pad_(startHour)}:00, ${name}`,
-      body: details + `\n\nСобытие в календаре: ${title}\nОтветить клиенту можно прямо на это письмо.`,
+      body: details + invoiceNote + `\n\nСобытие в календаре: ${title}\nОтветить клиенту можно прямо на это письмо.`,
       name: "ORO Studio сайт",
       replyTo: email,
+      attachments: invoice ? [invoice.pdf] : [],
     });
 
     if (CONFIG.SEND_CLIENT_EMAIL) {
       // Если письмо клиенту не ушло (квота, кривой адрес), заявка всё равно принята.
       try {
-        const m = clientEmail_(lang, { name, type, date, startHour, hours, guests, price });
-        MailApp.sendEmail({ to: email, subject: m.subject, body: m.body, name: "ORO Studio", replyTo: CONFIG.NOTIFY_EMAIL });
+        const m = clientEmail_(lang, order, invoice);
+        MailApp.sendEmail({
+          to: email,
+          subject: m.subject,
+          body: m.body,
+          htmlBody: m.htmlBody,
+          name: "ORO Studio",
+          replyTo: CONFIG.NOTIFY_EMAIL,
+          attachments: invoice ? [invoice.pdf] : [],
+        });
       } catch (e) {
         console.error("client email failed: " + e);
       }
@@ -194,56 +244,276 @@ const MONTHS_ = {
   et: ["jaanuar", "veebruar", "märts", "aprill", "mai", "juuni", "juuli", "august", "september", "oktoober", "november", "detsember"],
 };
 
-function clientEmail_(lang, o) {
+function clientEmail_(lang, o, inv) {
   const [y, mo, d] = o.date.split("-").map(Number);
   const time = `${pad_(o.startHour)}:00–${pad_(o.startHour + o.hours)}:00`;
   const pre = CONFIG.PREPAYMENT_EUR;
-  if (lang === "ru") {
-    return {
-      subject: `ORO Studio: заявка на ${d} ${MONTHS_.ru[mo - 1]}, ${time}`,
-      body: [
-        `Здравствуйте, ${o.name}!`,
-        "",
-        "Спасибо за заявку. Мы предварительно забронировали для вас время в ORO Studio:",
-        "",
-        `Дата: ${d} ${MONTHS_.ru[mo - 1]} ${y}`,
-        `Время: ${time}`,
-        `Формат: ${o.type}`,
-        `Гостей: ${o.guests}`,
-        `Аренда по калькулятору: €${o.price}`,
-        "",
-        `Бронь подтверждается после оплаты аренды: счёт мы пришлём отдельным письмом. Если вы отмените бронь, оплату вернём, кроме €${pre}.`,
-        "",
-        "Если есть вопросы или нужно что-то изменить, просто ответьте на это письмо или напишите нам в WhatsApp: +372 5336 3795.",
-        "",
-        "До встречи!",
-        "ORO Studio",
-        "Narva mnt 4, Tallinn",
-      ].join("\n"),
-    };
+  const t =
+    lang === "ru"
+      ? {
+          subject: `ORO Studio: заявка на ${d} ${MONTHS_.ru[mo - 1]}, ${time}`,
+          hello: `Здравствуйте, ${o.name}!`,
+          intro: "Спасибо за заявку. Мы предварительно забронировали для вас время в ORO Studio:",
+          rows: [
+            ["Дата", `${d} ${MONTHS_.ru[mo - 1]} ${y}`],
+            ["Время", time],
+            ["Формат", o.type],
+            ["Гостей", String(o.guests)],
+            ["Аренда по калькулятору", `€${o.price}`],
+          ],
+          note: inv
+            ? `Бронь подтверждается после оплаты счёта ${inv.number} (во вложении). Если вы отмените бронь, оплату вернём, кроме €${pre}.`
+            : `Бронь подтверждается после оплаты аренды: счёт мы пришлём отдельным письмом. Если вы отмените бронь, оплату вернём, кроме €${pre}.`,
+          payTitle: "Оплата",
+          payRows: inv
+            ? [
+                ["Счёт", inv.number],
+                ["Сумма", `€${o.price}`],
+                ["Получатель", CONFIG.INVOICE.SELLER_NAME],
+                ["IBAN", CONFIG.INVOICE.IBAN],
+                ["Пояснение", inv.number],
+                ["Оплатить до", inv.dueText],
+              ]
+            : null,
+          outro: "Если есть вопросы или нужно что-то изменить, просто ответьте на это письмо или напишите нам в WhatsApp:",
+          bye: "До встречи!",
+        }
+      : {
+          subject: `ORO Studio: broneeringu päring ${d}. ${MONTHS_.et[mo - 1]}, ${time}`,
+          hello: `Tere, ${o.name}!`,
+          intro: "Aitäh päringu eest! Broneerisime sinu jaoks esialgselt aja ORO Studios:",
+          rows: [
+            ["Kuupäev", `${d}. ${MONTHS_.et[mo - 1]} ${y}`],
+            ["Kellaaeg", time],
+            ["Formaat", o.type],
+            ["Külalisi", String(o.guests)],
+            ["Rendi hind kalkulaatori järgi", `€${o.price}`],
+          ],
+          note: inv
+            ? `Broneering kinnitatakse pärast arve ${inv.number} tasumist (manuses). Broneeringu tühistamisel tagastame makse, välja arvatud €${pre}.`
+            : `Broneering kinnitatakse pärast rendi tasumist: arve saadame eraldi kirjaga. Broneeringu tühistamisel tagastame makse, välja arvatud €${pre}.`,
+          payTitle: "Tasumine",
+          payRows: inv
+            ? [
+                ["Arve", inv.number],
+                ["Summa", `€${o.price}`],
+                ["Saaja", CONFIG.INVOICE.SELLER_NAME],
+                ["IBAN", CONFIG.INVOICE.IBAN],
+                ["Selgitus", inv.number],
+                ["Tasuda hiljemalt", inv.dueText],
+              ]
+            : null,
+          outro: "Kui sul on küsimusi või soovid midagi muuta, vasta lihtsalt sellele kirjale või kirjuta meile WhatsAppis:",
+          bye: "Kohtumiseni!",
+        };
+
+  const body = [
+    t.hello,
+    "",
+    t.intro,
+    "",
+    ...t.rows.map(([k, v]) => `${k}: ${v}`),
+    "",
+    ...(t.payRows ? [t.payTitle + ":", ...t.payRows.map(([k, v]) => `${k}: ${v}`), ""] : []),
+    t.note,
+    "",
+    `${t.outro} ${CONFIG.PHONE_DISPLAY}`,
+    "",
+    t.bye,
+    "ORO Studio",
+    CONFIG.ADDRESS,
+  ].join("\n");
+
+  return { subject: t.subject, body, htmlBody: brandedHtml_(t) };
+}
+
+/* Фирменное HTML-письмо: цвета и шрифты сайта. Вёрстка таблицами и инлайн-стилями,
+   чтобы одинаково выглядело в Gmail, Outlook и Apple Mail. */
+const BRAND_ = {
+  ivory: "#F7F3EC",
+  card: "#FBF8F2",
+  ivoryDeep: "#EDE6D6",
+  oliveDark: "#4F5A3D",
+  olive: "#6F7A56",
+  gold: "#B08A45",
+  ink: "#3A3428",
+  inkSoft: "#6B6250",
+  serif: "'Cormorant Garamond', Georgia, 'Times New Roman', serif",
+  sans: "Montserrat, 'Helvetica Neue', Arial, sans-serif",
+};
+
+function esc_(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function brandedHtml_(t) {
+  const B = BRAND_;
+  const table = (list) =>
+    list
+      .map(
+        ([k, v]) =>
+          `<tr><td style="padding:9px 0;border-bottom:1px solid ${B.ivoryDeep};font:300 13px/1.5 ${B.sans};color:${B.inkSoft};">${esc_(k)}</td>` +
+          `<td align="right" style="padding:9px 0;border-bottom:1px solid ${B.ivoryDeep};font:500 14px/1.5 ${B.sans};color:${B.ink};">${esc_(v)}</td></tr>`
+      )
+      .join("");
+  const pay = t.payRows
+    ? `<h2 style="margin:0 0 6px;font:500 20px/1.3 ${B.serif};color:${B.oliveDark};">${esc_(t.payTitle)}</h2>` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;">${table(t.payRows)}</table>`
+    : "";
+  const rows = t.rows
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:9px 0;border-bottom:1px solid ${B.ivoryDeep};font:300 13px/1.5 ${B.sans};color:${B.inkSoft};">${esc_(k)}</td>` +
+        `<td align="right" style="padding:9px 0;border-bottom:1px solid ${B.ivoryDeep};font:500 14px/1.5 ${B.sans};color:${B.ink};">${esc_(v)}</td></tr>`
+    )
+    .join("");
+  const wa = `https://wa.me/${CONFIG.PHONE_RAW}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:${B.ivory};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${B.ivory};"><tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+<tr><td align="center" style="padding:0 0 20px;"><img src="${CONFIG.LOGO_URL}" width="96" height="96" alt="ORO Studio" style="display:block;border:0;"></td></tr>
+<tr><td style="background:${B.card};border:1px solid ${B.ivoryDeep};border-radius:18px;padding:36px 32px;">
+<h1 style="margin:0 0 14px;font:500 28px/1.2 ${B.serif};color:${B.oliveDark};">${esc_(t.hello)}</h1>
+<p style="margin:0 0 20px;font:300 14px/1.7 ${B.sans};color:${B.ink};">${esc_(t.intro)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;">${rows}</table>
+${pay}
+<p style="margin:0 0 22px;padding:14px 16px;background:${B.ivoryDeep};border-left:3px solid ${B.gold};border-radius:8px;font:400 13px/1.6 ${B.sans};color:${B.oliveDark};">${esc_(t.note)}</p>
+<p style="margin:0 0 22px;font:300 13px/1.7 ${B.sans};color:${B.inkSoft};">${esc_(t.outro)} <a href="${wa}" style="color:${B.oliveDark};font-weight:500;">${esc_(CONFIG.PHONE_DISPLAY)}</a></p>
+<p style="margin:0;font:italic 500 20px/1.3 ${B.serif};color:${B.gold};">${esc_(t.bye)}</p>
+</td></tr>
+<tr><td align="center" style="padding:22px 0 0;font:300 12px/1.7 ${B.sans};color:${B.inkSoft};">
+ORO Studio · ${esc_(CONFIG.ADDRESS)}<br>
+<a href="${CONFIG.SITE_URL}" style="color:${B.olive};">${esc_(CONFIG.SITE_URL.replace(/^https?:\/\//, ""))}</a> · <a href="mailto:${CONFIG.NOTIFY_EMAIL}" style="color:${B.olive};">${CONFIG.NOTIFY_EMAIL}</a>
+</td></tr></table></td></tr></table></body></html>`;
+}
+
+/* ---------------- Автосчёт ---------------- */
+
+function invoiceReady_() {
+  const I = CONFIG.INVOICE;
+  return I.ENABLED && !!I.IBAN && !!I.SELLER_NAME && !!I.REG_CODE;
+}
+
+// Следующий номер счёта: ORO-2026-001. Вызывается под LockService из book_().
+function nextInvoiceNumber_() {
+  const props = PropertiesService.getScriptProperties();
+  const year = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy");
+  const key = "invoice_seq_" + year;
+  const n = Number(props.getProperty(key) || 0) + 1;
+  props.setProperty(key, String(n));
+  return `${CONFIG.INVOICE.PREFIX}-${year}-${String(n).padStart(3, "0")}`;
+}
+
+// Папка на Диске и таблица-журнал счетов создаются сами при первом счёте.
+function invoiceStore_() {
+  const props = PropertiesService.getScriptProperties();
+  let folder;
+  try {
+    folder = DriveApp.getFolderById(props.getProperty("invoice_folder"));
+  } catch (e) {
+    folder = DriveApp.createFolder("ORO Studio — счета");
+    props.setProperty("invoice_folder", folder.getId());
   }
-  return {
-    subject: `ORO Studio: broneeringu päring ${d}. ${MONTHS_.et[mo - 1]}, ${time}`,
-    body: [
-      `Tere, ${o.name}!`,
-      "",
-      "Aitäh päringu eest! Broneerisime sinu jaoks esialgselt aja ORO Studios:",
-      "",
-      `Kuupäev: ${d}. ${MONTHS_.et[mo - 1]} ${y}`,
-      `Kellaaeg: ${time}`,
-      `Formaat: ${o.type}`,
-      `Külalisi: ${o.guests}`,
-      `Rendi hind kalkulaatori järgi: €${o.price}`,
-      "",
-      `Broneering kinnitatakse pärast rendi tasumist: arve saadame eraldi kirjaga. Broneeringu tühistamisel tagastame makse, välja arvatud €${pre}.`,
-      "",
-      "Kui sul on küsimusi või soovid midagi muuta, vasta lihtsalt sellele kirjale või kirjuta meile WhatsAppis: +372 5336 3795.",
-      "",
-      "Kohtumiseni!",
-      "ORO Studio",
-      "Narva mnt 4, Tallinn",
-    ].join("\n"),
-  };
+  let sheet;
+  try {
+    sheet = SpreadsheetApp.openById(props.getProperty("invoice_sheet")).getSheets()[0];
+  } catch (e) {
+    const ss = SpreadsheetApp.create("ORO Studio — журнал счетов");
+    DriveApp.getFileById(ss.getId()).moveTo(folder);
+    sheet = ss.getSheets()[0];
+    sheet.appendRow(["Номер", "Дата счёта", "Срок оплаты", "Клиент", "Email", "Мероприятие", "Часы", "Сумма €", "PDF", "Оплачен"]);
+    sheet.setFrozenRows(1);
+    props.setProperty("invoice_sheet", ss.getId());
+  }
+  return { folder, sheet };
+}
+
+function makeInvoice_(lang, o) {
+  const number = nextInvoiceNumber_();
+  const today = new Date();
+  const due = new Date(Math.min(today.getTime() + CONFIG.INVOICE.DUE_DAYS * 24 * 3600 * 1000, o.start.getTime()));
+  const fmt = (d) => Utilities.formatDate(d, CONFIG.TIMEZONE, "dd.MM.yyyy");
+  const inv = { number, dateText: fmt(today), dueText: fmt(due) };
+
+  const html = invoiceHtml_(lang, o, inv);
+  const pdf = Utilities.newBlob(html, "text/html", number + ".html").getAs("application/pdf").setName(`${number}.pdf`);
+  inv.pdf = pdf;
+
+  const store = invoiceStore_();
+  const file = store.folder.createFile(pdf);
+  store.sheet.appendRow([number, inv.dateText, inv.dueText, o.name, o.email, `${o.date} ${pad_(o.startHour)}:00`, o.hours, o.price, file.getUrl(), ""]);
+  return inv;
+}
+
+function logoDataUri_() {
+  try {
+    const blob = UrlFetchApp.fetch(CONFIG.LOGO_URL).getBlob();
+    return "data:image/png;base64," + Utilities.base64Encode(blob.getBytes());
+  } catch (e) {
+    return "";
+  }
+}
+
+function invoiceHtml_(lang, o, inv) {
+  const B = BRAND_;
+  const I = CONFIG.INVOICE;
+  const ru = lang === "ru";
+  const L = ru
+    ? { title: "Счёт", no: "№", date: "Дата", due: "Оплатить до", seller: "Продавец", buyer: "Покупатель", reg: "Рег. код", vat: "KMKR",
+        item: "Описание", qty: "Кол-во", unit: "Цена", sum: "Сумма", hrs: "ч", net: "Без НДС", vatLine: "НДС", total: "Итого к оплате",
+        pay: "Реквизиты для оплаты", ref: "Пояснение к платежу", bank: "Банк",
+        desc: `Аренда ORO Studio, ${o.date.split("-").reverse().join(".")} ${pad_(o.startHour)}:00–${pad_(o.startHour + o.hours)}:00 (${o.type})`,
+        cancel: `Бронь подтверждается после оплаты. При отмене оплата возвращается, кроме €${CONFIG.PREPAYMENT_EUR}.` }
+    : { title: "Arve", no: "Nr", date: "Kuupäev", due: "Maksetähtaeg", seller: "Müüja", buyer: "Ostja", reg: "Reg-kood", vat: "KMKR",
+        item: "Kirjeldus", qty: "Kogus", unit: "Hind", sum: "Summa", hrs: "h", net: "Summa km-ta", vatLine: "Käibemaks", total: "Tasumisele kuulub",
+        pay: "Maksmise andmed", ref: "Selgitus", bank: "Pank",
+        desc: `ORO Studio rent, ${o.date.split("-").reverse().join(".")} ${pad_(o.startHour)}:00–${pad_(o.startHour + o.hours)}:00 (${o.type})`,
+        cancel: `Broneering kinnitatakse pärast tasumist. Tühistamisel tagastame makse, välja arvatud €${CONFIG.PREPAYMENT_EUR}.` };
+  const eur = (n) => "€" + n.toFixed(2);
+  const total = o.price;
+  const net = I.VAT_RATE ? total / (1 + I.VAT_RATE) : total;
+  const logo = logoDataUri_();
+  const cell = `padding:8px 6px;border-bottom:1px solid ${B.ivoryDeep};font-size:11px;`;
+  const kv = (k, v) => (v ? `<tr><td style="padding:2px 12px 2px 0;color:${B.inkSoft};">${esc_(k)}</td><td style="padding:2px 0;">${esc_(v)}</td></tr>` : "");
+  return `<html><head><meta charset="utf-8"></head><body style="margin:0;font-family:Arial,sans-serif;color:${B.ink};font-size:11px;">
+<div style="padding:36px 44px;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td valign="top">${logo ? `<img src="${logo}" width="84" height="84">` : `<span style="font-family:Georgia,serif;font-size:30px;color:${B.gold};">ORO</span> <span style="font-family:Georgia,serif;color:${B.gold};">studio</span>`}</td>
+<td valign="top" align="right"><div style="font-family:Georgia,serif;font-size:28px;color:${B.oliveDark};">${L.title}</div>
+<table cellpadding="0" cellspacing="0" style="margin-top:6px;font-size:11px;">${kv(L.no, inv.number)}${kv(L.date, inv.dateText)}${kv(L.due, inv.dueText)}</table></td>
+</tr></table>
+<div style="height:1px;background:${B.gold};margin:22px 0;"></div>
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td valign="top" width="50%" style="font-size:11px;line-height:1.6;"><div style="font-size:9px;letter-spacing:1px;color:${B.olive};text-transform:uppercase;margin-bottom:6px;">${L.seller}</div>
+<b>${esc_(I.SELLER_NAME)}</b><br>${esc_(I.SELLER_ADDRESS)}<br>${L.reg}: ${esc_(I.REG_CODE)}${I.VAT_NO ? `<br>${L.vat}: ${esc_(I.VAT_NO)}` : ""}<br>${esc_(CONFIG.NOTIFY_EMAIL)} · ${esc_(CONFIG.PHONE_DISPLAY)}</td>
+<td valign="top" width="50%" style="font-size:11px;line-height:1.6;"><div style="font-size:9px;letter-spacing:1px;color:${B.olive};text-transform:uppercase;margin-bottom:6px;">${L.buyer}</div>
+<b>${esc_(o.name)}</b><br>${esc_(o.email)}</td>
+</tr></table>
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:26px;">
+<tr style="background:${B.ivoryDeep};"><td style="${cell}color:${B.oliveDark};">${L.item}</td><td align="right" style="${cell}color:${B.oliveDark};">${L.qty}</td><td align="right" style="${cell}color:${B.oliveDark};">${L.unit}</td><td align="right" style="${cell}color:${B.oliveDark};">${L.sum}</td></tr>
+<tr><td style="${cell}">${esc_(L.desc)}</td><td align="right" style="${cell}">${o.hours} ${L.hrs}</td><td align="right" style="${cell}">${eur(o.pricePerHour)}</td><td align="right" style="${cell}">${eur(total)}</td></tr>
+</table>
+<table cellpadding="0" cellspacing="0" align="right" style="margin-top:12px;font-size:11px;">
+${I.VAT_RATE ? `<tr><td style="padding:3px 18px 3px 0;color:${B.inkSoft};">${L.net}</td><td align="right">${eur(net)}</td></tr><tr><td style="padding:3px 18px 3px 0;color:${B.inkSoft};">${L.vatLine} ${Math.round(I.VAT_RATE * 100)}%</td><td align="right">${eur(total - net)}</td></tr>` : ""}
+<tr><td style="padding:8px 18px 0 0;font-family:Georgia,serif;font-size:15px;color:${B.oliveDark};">${L.total}</td><td align="right" style="padding-top:8px;font-size:15px;"><b>${eur(total)}</b></td></tr>
+</table>
+<div style="clear:both;"></div>
+<div style="margin-top:30px;padding:14px 16px;background:${B.ivory};border-left:3px solid ${B.gold};">
+<div style="font-family:Georgia,serif;font-size:14px;color:${B.oliveDark};margin-bottom:6px;">${L.pay}</div>
+<table cellpadding="0" cellspacing="0" style="font-size:11px;">${kv("IBAN", I.IBAN)}${kv(L.bank, I.BANK)}${kv(L.ref, inv.number)}${kv(L.due, inv.dueText)}</table>
+</div>
+<p style="margin-top:18px;color:${B.inkSoft};">${esc_(L.cancel)}</p>
+</div></body></html>`;
+}
+
+/** Ручная проверка: создаёт тестовый PDF-счёт на Диске (не отправляет и не увеличивает номер). */
+function testInvoice() {
+  const o = { name: "Test Client", email: "test@example.com", type: "Групповое мероприятие", date: "2026-12-01", startHour: 14, hours: 3, guests: 6, price: 90, pricePerHour: 30, start: new Date() };
+  const html = invoiceHtml_("ru", o, { number: "TEST-001", dateText: "01.12.2026", dueText: "01.12.2026" });
+  const file = DriveApp.createFile(Utilities.newBlob(html, "text/html", "t.html").getAs("application/pdf").setName("TEST-001.pdf"));
+  Logger.log(file.getUrl());
 }
 
 function pricePerHour_(guests) {
