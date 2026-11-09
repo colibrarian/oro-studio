@@ -39,7 +39,7 @@ const CONFIG = {
   INVOICE: {
     ENABLED: true,
     SELLER_NAME: "Flor Da Vida OÜ", // юр. название фирмы
-    REG_CODE: "3127475", // регистрационный код (TODO: в Эстонии 8 цифр, сверить с ariregister.rik.ee)
+    REG_CODE: "17254532", // регистрационный код
     VAT_NO: "", // KMKR, если фирма плательщик НДС; иначе пусто
     VAT_RATE: 0, // 0.24, если плательщик НДС (цены сайта считаются включающими НДС); иначе 0
     SELLER_ADDRESS: "Narva mnt 4, 10117 Tallinn",
