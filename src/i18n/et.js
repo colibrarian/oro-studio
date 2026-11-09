@@ -310,7 +310,7 @@ const et = {
     sendErrorCta: "Saada WhatsAppi kaudu",
     doneTitleCal: (name) => `Aitäh, ${name}! Päring on vastu võetud`,
     doneTextCal:
-      "Broneerisime selle aja sinu jaoks esialgselt ja saatsime üksikasjad sinu e-postile. Broneering kinnitatakse pärast rendiarve tasumist, arve saadame eraldi. Tühistamisel tagastame makse, välja arvatud €20.",
+      "Broneerisime selle aja sinu jaoks esialgselt ja saatsime üksikasjad sinu e-postile. Broneering kinnitatakse pärast rendiarve tasumist, arve tuleb sinu e-postile. Tühistamisel tagastame makse, välja arvatud €20.",
     reopen: "Ava WhatsApp uuesti",
     again: "Saada uus päring",
   },
