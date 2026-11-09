@@ -33,7 +33,8 @@
 - `NOTIFY_EMAIL` — куда слать письма о заявках.
 - `BUFFER_BEFORE_HOURS` / `BUFFER_AFTER_HOURS` — буфер вокруг каждого события (сейчас 1 и 1). `0` выключает.
 - `PREPAYMENT_EUR` — сколько не возвращается при отмене после оплаты (в письме клиенту).
-- `SEND_CLIENT_EMAIL` — `false` отключает письмо клиенту. Сам текст письма в функции `clientEmail_`.
+- `SEND_CLIENT_EMAIL` — `false` отключает письмо клиенту. Текст письма в `clientEmail_`, фирменная HTML-вёрстка в `brandedHtml_` (цвета сайта, логотип по `LOGO_URL`).
+- `SITE_URL` / `LOGO_URL` — после переезда на orostudiotallinn.com поменять на новый домен.
 - `MAX_BOOKINGS_PER_HOUR` — защита от спама.
 
 ## Что важно знать

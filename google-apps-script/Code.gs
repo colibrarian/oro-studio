@@ -27,6 +27,12 @@ const CONFIG = {
   BUFFER_AFTER_HOURS: 1, // и столько после
   PREPAYMENT_EUR: 20, // сколько не возвращается при отмене после оплаты, упоминается в письме клиенту
   SEND_CLIENT_EMAIL: true, // письмо-подтверждение клиенту
+  // Для фирменного письма. После переезда на свой домен поменять SITE_URL и LOGO_URL.
+  SITE_URL: "https://colibrarian.github.io/oro-studio/",
+  LOGO_URL: "https://colibrarian.github.io/oro-studio/images/email/oro-logo-240.png",
+  PHONE_DISPLAY: "+372 5336 3795",
+  PHONE_RAW: "37253363795",
+  ADDRESS: "Narva mnt 4, Tallinn",
 };
 
 /* ---------------- HTTP ---------------- */
@@ -145,7 +151,7 @@ function book_(b) {
       // Если письмо клиенту не ушло (квота, кривой адрес), заявка всё равно принята.
       try {
         const m = clientEmail_(lang, { name, type, date, startHour, hours, guests, price });
-        MailApp.sendEmail({ to: email, subject: m.subject, body: m.body, name: "ORO Studio", replyTo: CONFIG.NOTIFY_EMAIL });
+        MailApp.sendEmail({ to: email, subject: m.subject, body: m.body, htmlBody: m.htmlBody, name: "ORO Studio", replyTo: CONFIG.NOTIFY_EMAIL });
       } catch (e) {
         console.error("client email failed: " + e);
       }
@@ -198,52 +204,105 @@ function clientEmail_(lang, o) {
   const [y, mo, d] = o.date.split("-").map(Number);
   const time = `${pad_(o.startHour)}:00–${pad_(o.startHour + o.hours)}:00`;
   const pre = CONFIG.PREPAYMENT_EUR;
-  if (lang === "ru") {
-    return {
-      subject: `ORO Studio: заявка на ${d} ${MONTHS_.ru[mo - 1]}, ${time}`,
-      body: [
-        `Здравствуйте, ${o.name}!`,
-        "",
-        "Спасибо за заявку. Мы предварительно забронировали для вас время в ORO Studio:",
-        "",
-        `Дата: ${d} ${MONTHS_.ru[mo - 1]} ${y}`,
-        `Время: ${time}`,
-        `Формат: ${o.type}`,
-        `Гостей: ${o.guests}`,
-        `Аренда по калькулятору: €${o.price}`,
-        "",
-        `Бронь подтверждается после оплаты аренды: счёт мы пришлём отдельным письмом. Если вы отмените бронь, оплату вернём, кроме €${pre}.`,
-        "",
-        "Если есть вопросы или нужно что-то изменить, просто ответьте на это письмо или напишите нам в WhatsApp: +372 5336 3795.",
-        "",
-        "До встречи!",
-        "ORO Studio",
-        "Narva mnt 4, Tallinn",
-      ].join("\n"),
-    };
-  }
-  return {
-    subject: `ORO Studio: broneeringu päring ${d}. ${MONTHS_.et[mo - 1]}, ${time}`,
-    body: [
-      `Tere, ${o.name}!`,
-      "",
-      "Aitäh päringu eest! Broneerisime sinu jaoks esialgselt aja ORO Studios:",
-      "",
-      `Kuupäev: ${d}. ${MONTHS_.et[mo - 1]} ${y}`,
-      `Kellaaeg: ${time}`,
-      `Formaat: ${o.type}`,
-      `Külalisi: ${o.guests}`,
-      `Rendi hind kalkulaatori järgi: €${o.price}`,
-      "",
-      `Broneering kinnitatakse pärast rendi tasumist: arve saadame eraldi kirjaga. Broneeringu tühistamisel tagastame makse, välja arvatud €${pre}.`,
-      "",
-      "Kui sul on küsimusi või soovid midagi muuta, vasta lihtsalt sellele kirjale või kirjuta meile WhatsAppis: +372 5336 3795.",
-      "",
-      "Kohtumiseni!",
-      "ORO Studio",
-      "Narva mnt 4, Tallinn",
-    ].join("\n"),
-  };
+  const t =
+    lang === "ru"
+      ? {
+          subject: `ORO Studio: заявка на ${d} ${MONTHS_.ru[mo - 1]}, ${time}`,
+          hello: `Здравствуйте, ${o.name}!`,
+          intro: "Спасибо за заявку. Мы предварительно забронировали для вас время в ORO Studio:",
+          rows: [
+            ["Дата", `${d} ${MONTHS_.ru[mo - 1]} ${y}`],
+            ["Время", time],
+            ["Формат", o.type],
+            ["Гостей", String(o.guests)],
+            ["Аренда по калькулятору", `€${o.price}`],
+          ],
+          note: `Бронь подтверждается после оплаты аренды: счёт мы пришлём отдельным письмом. Если вы отмените бронь, оплату вернём, кроме €${pre}.`,
+          outro: "Если есть вопросы или нужно что-то изменить, просто ответьте на это письмо или напишите нам в WhatsApp:",
+          bye: "До встречи!",
+        }
+      : {
+          subject: `ORO Studio: broneeringu päring ${d}. ${MONTHS_.et[mo - 1]}, ${time}`,
+          hello: `Tere, ${o.name}!`,
+          intro: "Aitäh päringu eest! Broneerisime sinu jaoks esialgselt aja ORO Studios:",
+          rows: [
+            ["Kuupäev", `${d}. ${MONTHS_.et[mo - 1]} ${y}`],
+            ["Kellaaeg", time],
+            ["Formaat", o.type],
+            ["Külalisi", String(o.guests)],
+            ["Rendi hind kalkulaatori järgi", `€${o.price}`],
+          ],
+          note: `Broneering kinnitatakse pärast rendi tasumist: arve saadame eraldi kirjaga. Broneeringu tühistamisel tagastame makse, välja arvatud €${pre}.`,
+          outro: "Kui sul on küsimusi või soovid midagi muuta, vasta lihtsalt sellele kirjale või kirjuta meile WhatsAppis:",
+          bye: "Kohtumiseni!",
+        };
+
+  const body = [
+    t.hello,
+    "",
+    t.intro,
+    "",
+    ...t.rows.map(([k, v]) => `${k}: ${v}`),
+    "",
+    t.note,
+    "",
+    `${t.outro} ${CONFIG.PHONE_DISPLAY}`,
+    "",
+    t.bye,
+    "ORO Studio",
+    CONFIG.ADDRESS,
+  ].join("\n");
+
+  return { subject: t.subject, body, htmlBody: brandedHtml_(t) };
+}
+
+/* Фирменное HTML-письмо: цвета и шрифты сайта. Вёрстка таблицами и инлайн-стилями,
+   чтобы одинаково выглядело в Gmail, Outlook и Apple Mail. */
+const BRAND_ = {
+  ivory: "#F7F3EC",
+  card: "#FBF8F2",
+  ivoryDeep: "#EDE6D6",
+  oliveDark: "#4F5A3D",
+  olive: "#6F7A56",
+  gold: "#B08A45",
+  ink: "#3A3428",
+  inkSoft: "#6B6250",
+  serif: "'Cormorant Garamond', Georgia, 'Times New Roman', serif",
+  sans: "Montserrat, 'Helvetica Neue', Arial, sans-serif",
+};
+
+function esc_(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function brandedHtml_(t) {
+  const B = BRAND_;
+  const rows = t.rows
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:9px 0;border-bottom:1px solid ${B.ivoryDeep};font:300 13px/1.5 ${B.sans};color:${B.inkSoft};">${esc_(k)}</td>` +
+        `<td align="right" style="padding:9px 0;border-bottom:1px solid ${B.ivoryDeep};font:500 14px/1.5 ${B.sans};color:${B.ink};">${esc_(v)}</td></tr>`
+    )
+    .join("");
+  const wa = `https://wa.me/${CONFIG.PHONE_RAW}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:${B.ivory};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${B.ivory};"><tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+<tr><td align="center" style="padding:0 0 20px;"><img src="${CONFIG.LOGO_URL}" width="96" height="96" alt="ORO Studio" style="display:block;border:0;"></td></tr>
+<tr><td style="background:${B.card};border:1px solid ${B.ivoryDeep};border-radius:18px;padding:36px 32px;">
+<h1 style="margin:0 0 14px;font:500 28px/1.2 ${B.serif};color:${B.oliveDark};">${esc_(t.hello)}</h1>
+<p style="margin:0 0 20px;font:300 14px/1.7 ${B.sans};color:${B.ink};">${esc_(t.intro)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;">${rows}</table>
+<p style="margin:0 0 22px;padding:14px 16px;background:${B.ivoryDeep};border-left:3px solid ${B.gold};border-radius:8px;font:400 13px/1.6 ${B.sans};color:${B.oliveDark};">${esc_(t.note)}</p>
+<p style="margin:0 0 22px;font:300 13px/1.7 ${B.sans};color:${B.inkSoft};">${esc_(t.outro)} <a href="${wa}" style="color:${B.oliveDark};font-weight:500;">${esc_(CONFIG.PHONE_DISPLAY)}</a></p>
+<p style="margin:0;font:italic 500 20px/1.3 ${B.serif};color:${B.gold};">${esc_(t.bye)}</p>
+</td></tr>
+<tr><td align="center" style="padding:22px 0 0;font:300 12px/1.7 ${B.sans};color:${B.inkSoft};">
+ORO Studio · ${esc_(CONFIG.ADDRESS)}<br>
+<a href="${CONFIG.SITE_URL}" style="color:${B.olive};">${esc_(CONFIG.SITE_URL.replace(/^https?:\/\//, ""))}</a> · <a href="mailto:${CONFIG.NOTIFY_EMAIL}" style="color:${B.olive};">${CONFIG.NOTIFY_EMAIL}</a>
+</td></tr></table></td></tr></table></body></html>`;
 }
 
 function pricePerHour_(guests) {
