@@ -27,7 +27,7 @@
 
 - [x] Развернуть Google Apps Script под events@orostudiotallinn.com, вписать URL `/exec` в `BOOKING_API_URL` (2026-11-18). Осталось: тестовая заявка на живом сайте. При правке Code.gs: вставить код в редактор и Deploy → Manage deployments → New version (URL не меняется).
 - Автосчета: номера ГГ+порядковый: 26075… в 2026, с 1 января 27001, реквизиты Flor Da Vida OÜ в `CONFIG.INVOICE` (Code.gs). Под ключ (birthday, bachelorette) без автосчёта.
-- [ ] Домен: подтвердить `orostudiotallinn.com` (куплен через Google, DNS теперь в Squarespace). A-записи `@` → 185.199.108–111.153, CNAME `www` → colibrarian.github.io, MX не трогать. Затем `CUSTOM_DOMAIN` в site.config.js и домен в GitHub → Settings → Pages + Enforce HTTPS.
+- [ ] Домен `orostudiotallinn.com` (куплен через Google, DNS в Squarespace). 2026-11-18 записи внесены: A `@` → 185.199.108–111.153, CNAME `www` → colibrarian.github.io, почта MX smtp.google.com + SPF + DKIM + DMARC (`_dmarc`, p=none). Письма не доходили из-за того, что домен был Suspended (не подтверждён email владельца), а не из-за DNS. `CUSTOM_DOMAIN` в site.config.js выставлен. Осталось: домен в репо Settings → Pages → Custom domain (деплой через Actions, файл CNAME GitHub не читает) + Enforce HTTPS, затем вставить свежий Code.gs (SITE_URL/LOGO_URL на домене) и New version.
 - [ ] Вычитка эстонского носителем.
 
 ## Правила работы

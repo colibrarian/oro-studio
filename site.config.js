@@ -2,7 +2,7 @@
 // client's own domain. When the domain DNS is ready:
 //   1. set CUSTOM_DOMAIN to "orostudiotallinn.com"
 //   2. push — the build writes the CNAME file and switches all URLs to "/".
-export const CUSTOM_DOMAIN = null; // e.g. "orostudiotallinn.com"
+export const CUSTOM_DOMAIN = "orostudiotallinn.com"; // null = colibrarian.github.io/oro-studio/
 
 export const BASE = CUSTOM_DOMAIN ? "/" : "/oro-studio/";
 export const SITE_URL = CUSTOM_DOMAIN ? `https://${CUSTOM_DOMAIN}` : "https://colibrarian.github.io/oro-studio";
