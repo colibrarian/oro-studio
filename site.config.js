@@ -16,7 +16,7 @@ export const DEFAULT_LANG = "et";
 
 // Google Calendar booking: the web-app URL of the Apps Script from
 // google-apps-script/ (ends with /exec). null = booking goes through WhatsApp only.
-export const BOOKING_API_URL = null;
+export const BOOKING_API_URL = "https://script.google.com/macros/s/AKfycbz9p7OuOBrJXlZePkUfApu0hF1auazKYJtnGE9KO7H0quXePKdtMYthw05IEOpfI9iz/exec";
 
 // Contacts — single source of truth for the page and for the SEO data.
 export const CONTACT = {
