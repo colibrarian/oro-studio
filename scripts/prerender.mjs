@@ -130,6 +130,24 @@ const pages = [
   ...LANGS.map(({ code, path }) => ({ code, page: "home", path, head: head(code) })),
   ...LANGS.map(({ code }) => ({ code, page: "legal", path: LEGAL_PAGES[code], head: legalHead(code) })),
 ];
+// Same on every page. A browser or CDN can keep an old copy of a page whose script
+// file (hashed name) no longer exists after a deploy: the page then shows without
+// the calendar, the header background and other live parts. If the script fails to
+// load, reload once with a fresh URL so the current page and script are fetched.
+const staleGuard = `<script>
+      var failed = false;
+      addEventListener("error", function (e) {
+        var s = e.target;
+        if (!s || s.tagName !== "SCRIPT" || s.src.indexOf("/assets/") < 0) return;
+        try { if (sessionStorage.getItem("oro-reloaded")) return; sessionStorage.setItem("oro-reloaded", "1"); } catch (_) { return; }
+        failed = true;
+        location.replace(location.pathname + "?v=" + Date.now() + location.hash);
+      }, true);
+      addEventListener("load", function () {
+        try { if (!failed) sessionStorage.removeItem("oro-reloaded"); } catch (_) {}
+      });
+    </script>`;
+
 for (const { code, page, path, head: headHtml } of pages) {
   const file = resolve(distDir, path, "index.html");
   if (!existsSync(file)) throw new Error(`Missing ${file} — did vite build run?`);
@@ -137,7 +155,7 @@ for (const { code, page, path, head: headHtml } of pages) {
   if (!html.includes("<!--app-html-->") || !html.includes("<!--app-head-->")) {
     throw new Error(`Placeholders not found in ${file}`);
   }
-  const out = html.replace("<!--app-head-->", headHtml).replace("<!--app-html-->", render(code, page));
+  const out = html.replace("<!--app-head-->", `${staleGuard}\n    ${headHtml}`).replace("<!--app-html-->", render(code, page));
   writeFileSync(file, out);
   console.log(`prerendered ${code}/${page} → ${file} (${Math.round(out.length / 1024)} KB)`);
 }
