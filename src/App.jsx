@@ -1582,7 +1582,7 @@ function Booking() {
             {cells.map((d, i) => {
               const full = !!d && !isPast(d) && isFull(d);
               const disabled = !d || isPast(d) || full;
-              const active = d === selectedDay;
+              const active = !!d && d === selectedDay;
               return (
                 <button
                   key={i}
