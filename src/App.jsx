@@ -1041,17 +1041,19 @@ function Gallery() {
     { name: "gallery-setup" },
   ];
   const photos = files.map((f, i) => ({ ...f, ...t.gallery.photos[i] }));
-  // Deterministic "scattered" offsets/rotations per card — organic but stable between renders.
+  // Deterministic "scattered" look: each of the 3 desktop columns keeps one vertical
+  // offset (a staggered masonry), only the tilt varies. Offsets that change inside a
+  // column made neighbouring cards overlap (e.g. card 2 over card 5).
   const scatter = [
     { y: 0, r: -1.8 },
     { y: 34, r: 1.2 },
-    { y: -14, r: -0.8 },
-    { y: 18, r: 2 },
-    { y: -6, r: -1.4 },
-    { y: 30, r: 1.6 },
-    { y: -20, r: -2.2 },
-    { y: 10, r: 0.6 },
-    { y: -12, r: -1 },
+    { y: 12, r: -0.8 },
+    { y: 0, r: 2 },
+    { y: 34, r: -1.4 },
+    { y: 12, r: 1.6 },
+    { y: 0, r: -2.2 },
+    { y: 34, r: 0.6 },
+    { y: 12, r: -1 },
   ];
   const close = React.useCallback(() => setOpen(null), []);
   const nav = React.useCallback((d) => setOpen((i) => (i + d + photos.length) % photos.length), [photos.length]);
@@ -1066,7 +1068,7 @@ function Gallery() {
         <SwipeHint />
       </div>
       <div
-        style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 34 }}
+        style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "56px 34px" }}
         className="oro-gallery-grid oro-swipe"
       >
         {photos.map((p, i) => (
@@ -1105,7 +1107,7 @@ function Gallery() {
           }
         }
         @media (max-width: 860px) and (min-width: 641px) {
-          .oro-gallery-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 24px !important; }
+          .oro-gallery-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 56px 24px !important; }
         }
         @media (max-width: 640px) {
           .oro-gallery-item { transform: none !important; }
