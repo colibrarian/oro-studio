@@ -45,7 +45,9 @@ const CONFIG = {
     SELLER_ADDRESS: "Narva mnt 4, 10117 Tallinn",
     IBAN: "EE46 2200 2210 9167 5087",
     BANK: "Swedbank",
-    START_NUMBER: 26075, // первый номер счёта; дальше 26076, 26077… без сброса по годам
+    // Номер = 2 цифры года + порядковый номер за год: 26075, 26076… а с 1 января 27001, 27002…
+    // Здесь можно задать, с какого номера начать конкретный год; без записи год начинается с ГГ001.
+    START_NUMBERS: { 2026: 26075 },
     DUE_DAYS: 3, // срок оплаты, но не позже дня мероприятия
     SKIP_TYPES: ["birthday", "bachelorette"], // под ключ: цена считается отдельно, счёт Наталья делает вручную
   },
@@ -80,19 +82,50 @@ function busy_(from, to) {
   const end = new Date(at_(to, 0).getTime() + 24 * 3600 * 1000);
   if (end - start > 62 * 24 * 3600 * 1000 || end <= start) return { ok: false, error: "bad_range" };
 
-  const events = eventsAround_(calendar_(), start, end);
+  // Короткий кэш: месяц не пересчитывается на каждый просмотр. Новая заявка сбрасывает кэш,
+  // событие, поставленное вручную, появится на сайте максимум через минуту
+  // (двойной брони всё равно не будет: при отправке время проверяется заново).
+  const cache = CacheService.getScriptCache();
+  const key = `busy_${cache.get("busy_ver") || 0}_${from}_${to}`;
+  const hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+
+  // Читаем события один раз и дальше считаем только числами: обращения к Календарю медленные.
+  const blocks = blocks_(eventsAround_(calendar_(), start, end));
+  const H = 3600 * 1000;
   const busy = {};
-  for (let d = new Date(start); d < end; d = new Date(d.getTime() + 24 * 3600 * 1000)) {
+  for (let d = new Date(start); d < end; d = new Date(d.getTime() + 24 * H)) {
     const key = Utilities.formatDate(d, CONFIG.TIMEZONE, "yyyy-MM-dd");
+    const day0 = at_(key, 0).getTime();
     const hours = [];
     for (let h = CONFIG.OPEN_HOUR; h < CONFIG.CLOSE_HOUR; h++) {
-      const s = at_(key, h);
-      const f = at_(key, h + 1);
-      if (events.some((ev) => overlaps_(ev, s, f))) hours.push(h);
+      const s = day0 + h * H;
+      const f = s + H;
+      if (blocks.some((b) => b.s < f && b.f > s)) hours.push(h);
     }
     if (hours.length) busy[key] = hours;
   }
-  return { ok: true, open: CONFIG.OPEN_HOUR, close: CONFIG.CLOSE_HOUR, busy };
+  const result = { ok: true, open: CONFIG.OPEN_HOUR, close: CONFIG.CLOSE_HOUR, busy };
+  cache.put(key, JSON.stringify(result), 60);
+  return result;
+}
+
+// События → занятые промежутки в миллисекундах, с буфером до и после.
+// Отклонённые приглашения пропускаются, события на весь день закрывают день без буфера.
+function blocks_(events) {
+  const before = CONFIG.BUFFER_BEFORE_HOURS * 3600 * 1000;
+  const after = CONFIG.BUFFER_AFTER_HOURS * 3600 * 1000;
+  const out = [];
+  events.forEach((ev) => {
+    try {
+      if (ev.getMyStatus && ev.getMyStatus() === CalendarApp.GuestStatus.NO) return;
+    } catch (e) {}
+    const s = ev.getStartTime().getTime();
+    const f = ev.getEndTime().getTime();
+    if (ev.isAllDayEvent()) out.push({ s, f });
+    else out.push({ s: s - before, f: f + after });
+  });
+  return out;
 }
 
 /* ---------------- Заявка ---------------- */
@@ -130,7 +163,9 @@ function book_(b) {
   lock.waitLock(15000);
   try {
     const cal = calendar_();
-    if (eventsAround_(cal, start, end).some((ev) => overlaps_(ev, start, end))) return { ok: false, error: "busy" };
+    const s0 = start.getTime();
+    const f0 = end.getTime();
+    if (blocks_(eventsAround_(cal, start, end)).some((x) => x.s < f0 && x.f > s0)) return { ok: false, error: "busy" };
 
     const price = pricePerHour_(guests) * hours;
     const title = `Заявка: ${name} · ${type} · ${guests} чел.`;
@@ -152,6 +187,9 @@ function book_(b) {
       .join("\n");
 
     const ev = cal.createEvent(title, start, end, { description: details });
+    // Сбросить кэш занятости, чтобы сайт сразу показал это время занятым.
+    const cache = CacheService.getScriptCache();
+    cache.put("busy_ver", String(Number(cache.get("busy_ver") || 0) + 1), 21600);
     try {
       ev.setColor(CONFIG.EVENT_COLOR);
     } catch (e) {}
@@ -174,14 +212,19 @@ function book_(b) {
       invoiceNote = "\n\nАвтосчёт не отправлялся (программа под ключ), выставьте счёт вручную.";
     }
 
-    MailApp.sendEmail({
+    // Письмо студии: если не ушло (квота), заявка всё равно принята, событие уже в календаре.
+    try {
+      MailApp.sendEmail({
       to: CONFIG.NOTIFY_EMAIL,
       subject: `Новая заявка ORO Studio: ${date} ${pad_(startHour)}:00, ${name}`,
       body: details + invoiceNote + `\n\nСобытие в календаре: ${title}\nОтветить клиенту можно прямо на это письмо.`,
       name: "ORO Studio сайт",
       replyTo: email,
       attachments: invoice ? [invoice.pdf] : [],
-    });
+      });
+    } catch (e) {
+      console.error("studio email failed: " + e);
+    }
 
     if (CONFIG.SEND_CLIENT_EMAIL) {
       // Если письмо клиенту не ушло (квота, кривой адрес), заявка всё равно принята.
@@ -216,19 +259,6 @@ function calendar_() {
 function at_(ymd, hour) {
   const day = Utilities.parseDate(ymd + " 00:00", CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm");
   return new Date(day.getTime() + hour * 3600 * 1000);
-}
-
-// Пересекается ли событие (вместе с буфером до и после) с промежутком [s, f).
-function overlaps_(ev, s, f) {
-  // Отклонённые приглашения не блокируют время.
-  try {
-    if (ev.getMyStatus && ev.getMyStatus() === CalendarApp.GuestStatus.NO) return false;
-  } catch (e) {}
-  // События на весь день (выходной, отпуск) закрывают день целиком, без буфера.
-  if (ev.isAllDayEvent()) return ev.getStartTime() < f && ev.getEndTime() > s;
-  const before = CONFIG.BUFFER_BEFORE_HOURS * 3600 * 1000;
-  const after = CONFIG.BUFFER_AFTER_HOURS * 3600 * 1000;
-  return ev.getStartTime().getTime() - before < f.getTime() && ev.getEndTime().getTime() + after > s.getTime();
 }
 
 // События, которые могут задеть [s, f) с учётом буфера.
@@ -396,12 +426,14 @@ function invoiceReady_() {
   return I.ENABLED && !!I.IBAN && !!I.SELLER_NAME && !!I.REG_CODE;
 }
 
-// Следующий номер счёта: 26075, 26076… Вызывается под LockService из book_().
+// Следующий номер счёта: 26075, 26076… в 2027 году 27001, 27002… Вызывается под LockService из book_().
 function nextInvoiceNumber_() {
   const props = PropertiesService.getScriptProperties();
-  const last = Number(props.getProperty("invoice_last") || 0);
-  const n = Math.max(last + 1, CONFIG.INVOICE.START_NUMBER);
-  props.setProperty("invoice_last", String(n));
+  const year = Number(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy"));
+  const key = "invoice_last_" + year;
+  const first = CONFIG.INVOICE.START_NUMBERS[year] || (year % 100) * 1000 + 1;
+  const n = Math.max(Number(props.getProperty(key) || 0) + 1, first);
+  props.setProperty(key, String(n));
   return String(n);
 }
 
