@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { LangContext, useT, langHref } from "./i18n/index.js";
+import React, { useState, useMemo, useEffect, createContext, useContext } from "react";
+import { LangContext, useT, langHref, legalHref } from "./i18n/index.js";
 import { CONTACT, BOOKING_API_URL } from "../site.config.js";
 import {
   Instagram,
@@ -39,6 +39,18 @@ const asset = (path) => `${import.meta.env.BASE_URL}${path}`.replace(/\/{2,}/g, 
 --------------------------------------------------------- */
 const { phoneDisplay: PHONE_DISPLAY, phoneRaw: PHONE_RAW, email: EMAIL } = CONTACT;
 const whatsapp = (text) => `https://wa.me/${PHONE_RAW}?text=${encodeURIComponent(text)}`;
+
+/* ---------------------------------------------------------
+   PAGES — "home" (the one-page site) or "legal" (terms, privacy, cookies).
+   On the legal page the "#section" links of the nav and footer point back
+   to the home page of the same language.
+--------------------------------------------------------- */
+const PageContext = createContext("home");
+function useHomeHref() {
+  const t = useT();
+  const page = useContext(PageContext);
+  return (hash) => (page === "home" ? hash : `${langHref(t.lang)}${hash}`);
+}
 
 /* ---------------------------------------------------------
    TOKENS
@@ -343,10 +355,12 @@ function Section({ id, bg = COLORS.ivory, children, ornament, padding = "100px 2
 --------------------------------------------------------- */
 function LangSwitch({ mobile }) {
   const t = useT();
+  const page = useContext(PageContext);
   const other = t.nav.switchTo;
+  const otherCode = other.code.toLowerCase();
   return (
     <a
-      href={langHref(other.code.toLowerCase())}
+      href={page === "legal" ? legalHref(otherCode) : langHref(otherCode)}
       hrefLang={other.code.toLowerCase()}
       lang={other.code.toLowerCase()}
       aria-label={other.label}
@@ -369,6 +383,7 @@ function LangSwitch({ mobile }) {
 
 function Nav() {
   const t = useT();
+  const home = useHomeHref();
   const [open, setOpen] = useState(false);
   const [solid, setSolid] = useState(false);
   useEffect(() => {
@@ -401,7 +416,7 @@ function Nav() {
           justifyContent: "space-between",
         }}
       >
-        <a href="#top" aria-label={t.nav.toTop} style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+        <a href={home("#top")} aria-label={t.nav.toTop} style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
           <Logo size={26} />
         </a>
 
@@ -409,7 +424,7 @@ function Nav() {
           {links.map(([label, href]) => (
             <a
               key={href}
-              href={href}
+              href={home(href)}
               className="oro-nav-link"
               style={{ fontFamily: SANS, fontSize: 13, letterSpacing: "0.04em", color: COLORS.ink, textDecoration: "none" }}
             >
@@ -423,7 +438,7 @@ function Nav() {
           <LangSwitch />
         </span>
         <a
-          href="#booking"
+          href={home("#booking")}
           className="oro-nav-cta oro-btn oro-btn-primary"
           style={{
             fontFamily: SANS,
@@ -456,7 +471,7 @@ function Nav() {
           {[...links, [t.common.book, "#booking"]].map(([label, href], i) => (
             <a
               key={label + i}
-              href={href}
+              href={home(href)}
               onClick={() => setOpen(false)}
               style={{
                 display: "block",
@@ -475,13 +490,13 @@ function Nav() {
         </div>
       )}
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 920px) {
           .oro-nav-links, .oro-nav-cta { display: none !important; }
           .oro-burger { display: block !important; }
           .oro-mobile-menu { display: block !important; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
@@ -1094,7 +1109,7 @@ function Gallery() {
         ))}
       </div>
       {open !== null && <Lightbox photos={photos} index={open} onClose={close} onNav={nav} />}
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .oro-gallery-item {
           transform: translateY(var(--gy)) rotate(var(--gr));
           transition: transform .4s ease;
@@ -1113,7 +1128,7 @@ function Gallery() {
           .oro-gallery-item { transform: none !important; }
           .oro-gallery-grid > * { flex-basis: 62% !important; }
         }
-      `}</style>
+      ` }} />
     </Section>
   );
 }
@@ -1815,6 +1830,17 @@ function Booking() {
             <p style={{ fontFamily: SANS, fontSize: 12, lineHeight: 1.6, color: COLORS.inkSoft, fontWeight: 300, margin: 0, textAlign: "center" }}>
               {BOOKING_API_URL && busyState !== "error" ? b.submitNoteCal : b.submitNote}
             </p>
+            <p style={{ fontFamily: SANS, fontSize: 11.5, lineHeight: 1.6, color: COLORS.inkSoft, fontWeight: 300, margin: 0, textAlign: "center" }}>
+              {t.legal.bookingNote.a}
+              <a href={`${legalHref(t.lang)}#terms`} style={{ color: COLORS.oliveDark }}>
+                {t.legal.bookingNote.terms}
+              </a>
+              {t.legal.bookingNote.b}
+              <a href={`${legalHref(t.lang)}#privacy`} style={{ color: COLORS.oliveDark }}>
+                {t.legal.bookingNote.privacy}
+              </a>
+              {t.legal.bookingNote.c}
+            </p>
           </form>
         </Card>
       </div>
@@ -1942,7 +1968,9 @@ function FinalCta() {
 --------------------------------------------------------- */
 function Footer() {
   const t = useT();
+  const home = useHomeHref();
   const f = t.footer;
+  const legal = t.legal.footer;
   const [year, setYear] = useState(2026);
   useEffect(() => setYear(new Date().getFullYear()), []);
   const social = [
@@ -1975,7 +2003,7 @@ function Footer() {
             {f.tagline}
           </p>
           <a
-            href="#booking"
+            href={home("#booking")}
             className="oro-btn oro-btn-primary"
             style={{
               fontFamily: SANS,
@@ -2055,21 +2083,166 @@ function Footer() {
         </div>
       </div>
 
-      <p style={{ fontFamily: SANS, fontSize: 12, color: "rgba(251,248,242,0.4)", textAlign: "center", margin: "26px 0 0" }}>
-        © {year} ORO Studio. {f.rights}
+      <nav
+        aria-label={t.legal.title}
+        style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px 22px", margin: "26px 0 0" }}
+      >
+        {[
+          [legal.terms, "#terms"],
+          [legal.privacy, "#privacy"],
+          [legal.cookies, "#cookies"],
+        ].map(([label, hash]) => (
+          <a
+            key={hash}
+            href={`${legalHref(t.lang)}${hash}`}
+            className="oro-nav-link"
+            style={{ fontFamily: SANS, fontSize: 12, color: "rgba(251,248,242,0.65)", textDecoration: "none" }}
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+      <p style={{ fontFamily: SANS, fontSize: 12, color: "rgba(251,248,242,0.4)", textAlign: "center", margin: "16px 0 0" }}>
+        © {year} ORO Studio · Flor Da Vida OÜ. {f.rights}
       </p>
     </footer>
   );
 }
 
 /* ---------------------------------------------------------
+   LEGAL PAGE — booking terms, privacy policy, cookies
+   (tingimused/ and ru/usloviya/; texts in src/i18n/legal-*.js)
+--------------------------------------------------------- */
+// Turns "[text](url)" inside a legal text into a link; everything else stays plain text.
+function RichText({ text }) {
+  const parts = [];
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const external = /^https?:/.test(m[2]);
+    parts.push(
+      <a
+        key={m.index}
+        href={m[2]}
+        style={{ color: COLORS.oliveDark, textDecorationColor: COLORS.goldLight, textUnderlineOffset: 3 }}
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      >
+        {m[1]}
+      </a>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
+function LegalPage() {
+  const t = useT();
+  const l = t.legal;
+  const para = { fontFamily: SANS, fontSize: 14.5, lineHeight: 1.75, color: COLORS.ink, fontWeight: 300, margin: "0 0 12px" };
+  return (
+    <Section
+      id="top"
+      padding="56px 28px 100px"
+      maxWidth={820}
+      ornament={
+        <div style={{ position: "absolute", top: -140, right: -160, pointerEvents: "none" }}>
+          <FlowerOfLife size={460} opacity={0.07} />
+        </div>
+      }
+    >
+      <a
+        href={langHref(t.lang)}
+        className="oro-link"
+        style={{ fontFamily: SANS, fontSize: 13, color: COLORS.oliveDark, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+      >
+        <ChevronLeft size={16} /> {l.back}
+      </a>
+      <div style={{ marginTop: 36 }}>
+        <Eyebrow>{l.eyebrow}</Eyebrow>
+        <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(34px, 5vw, 52px)", color: COLORS.ink, margin: 0, lineHeight: 1.12 }}>
+          {l.title}
+        </h1>
+        <Divider />
+        <p style={{ fontFamily: SANS, fontSize: 12.5, color: COLORS.oliveSoft, margin: "0 0 18px" }}>{l.updated}</p>
+        <p style={{ ...para, color: COLORS.inkSoft }}>
+          <RichText text={l.intro} />
+        </p>
+      </div>
+
+      <nav
+        aria-label={l.tocTitle}
+        style={{
+          margin: "30px 0 10px",
+          padding: "18px 22px",
+          background: COLORS.ivoryCard,
+          border: "1px solid rgba(111,122,86,0.14)",
+          borderRadius: 16,
+        }}
+      >
+        <div style={{ fontFamily: SANS, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.gold, marginBottom: 10 }}>
+          {l.tocTitle}
+        </div>
+        <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+          {l.sections.map((sec) => (
+            <li key={sec.id} style={{ fontFamily: SANS, fontSize: 14.5, color: COLORS.oliveDark }}>
+              <a href={`#${sec.id}`} style={{ color: COLORS.oliveDark, textDecoration: "none", fontWeight: 500 }}>
+                {sec.title}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      {l.sections.map((sec) => (
+        <section key={sec.id} id={sec.id} style={{ paddingTop: 44 }}>
+          <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(28px, 3.6vw, 38px)", color: COLORS.olive, margin: "0 0 6px", lineHeight: 1.2 }}>
+            {sec.title}
+          </h2>
+          <Divider width={48} />
+          {sec.items.map((item, i) => (
+            <div key={i} style={{ marginTop: i ? 24 : 6 }}>
+              {item.h && (
+                <h3 style={{ fontFamily: SANS, fontSize: 15.5, fontWeight: 500, color: COLORS.ink, margin: "0 0 10px", lineHeight: 1.4 }}>{item.h}</h3>
+              )}
+              {(item.intro || []).map((p) => (
+                <p key={p} style={para}>
+                  <RichText text={p} />
+                </p>
+              ))}
+              {item.list && (
+                <ul style={{ margin: "0 0 12px", paddingLeft: 20 }}>
+                  {item.list.map((li) => (
+                    <li key={li} style={{ ...para, margin: "0 0 8px" }}>
+                      <RichText text={li} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {(item.p || []).map((p) => (
+                <p key={p} style={para}>
+                  <RichText text={p} />
+                </p>
+              ))}
+            </div>
+          ))}
+        </section>
+      ))}
+    </Section>
+  );
+}
+
+/* ---------------------------------------------------------
    APP
 --------------------------------------------------------- */
-export default function App({ dict }) {
+export default function App({ dict, page = "home" }) {
   return (
     <LangContext.Provider value={dict}>
+    <PageContext.Provider value={page}>
     <div style={{ background: COLORS.ivory, minHeight: "100vh" }}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; }
         html { scroll-behavior: smooth; scroll-padding-top: 76px; }
         body { margin: 0; }
@@ -2240,23 +2413,30 @@ export default function App({ dict }) {
         @media (max-width: 560px) {
           .oro-four-col, .oro-addons { grid-template-columns: 1fr !important; }
         }
-      `}</style>
+      ` }} />
       <Nav />
       <main>
-        <Hero />
-        <About />
-        <Formats />
-        <Why />
-        <Turnkey />
-        <Occasions />
-        <Gallery />
-        <Pricing />
-        <Booking />
-        <Faq />
-        <FinalCta />
+        {page === "legal" ? (
+          <LegalPage />
+        ) : (
+          <>
+            <Hero />
+            <About />
+            <Formats />
+            <Why />
+            <Turnkey />
+            <Occasions />
+            <Gallery />
+            <Pricing />
+            <Booking />
+            <Faq />
+            <FinalCta />
+          </>
+        )}
       </main>
       <Footer />
     </div>
+    </PageContext.Provider>
     </LangContext.Provider>
   );
 }

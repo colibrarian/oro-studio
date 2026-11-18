@@ -11,6 +11,8 @@ export default defineConfig({
       input: {
         et: resolve(__dirname, "index.html"),
         ru: resolve(__dirname, "ru/index.html"),
+        "et-legal": resolve(__dirname, "tingimused/index.html"),
+        "ru-legal": resolve(__dirname, "ru/usloviya/index.html"),
       },
     },
   },

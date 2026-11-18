@@ -7,6 +7,8 @@
 
 - React 18 + Vite, одна страница. Весь UI в `src/App.jsx`.
 - **Все тексты** — в `src/i18n/et.js` (эстонский, основной, корень сайта) и `src/i18n/ru.js` (русский, `/ru/`). Правки текста делаются только там, обе версии синхронно.
+- Юридическая страница (условия бронирования, конфиденциальность, cookies): `/tingimused/` (ET) и `/ru/usloviya/` (RU), тексты в `src/i18n/legal-et.js` и `legal-ru.js`, компонент `LegalPage` в App.jsx. Ссылки в футере и под кнопкой заявки. При изменении условий брони (цены, срок оплаты, удержание 20 €) править и эти тексты, и дату «Обновлено».
+- Шрифты свои (`@fontsource`, `src/fonts.js`), Google Fonts не подключать: тогда на сайте нет запросов к третьим сторонам при загрузке и не нужен баннер cookies.
 - `site.config.js` — домен (`CUSTOM_DOMAIN`), языки, контакты, `BOOKING_API_URL`.
 - Сборка (`npm run build`): vite build → SSR-сборка `src/entry-server.jsx` → `scripts/prerender.mjs`, который вписывает готовый HTML каждой языковой страницы, meta/hreflang/Open Graph, JSON-LD (LocalBusiness, WebSite, FAQPage) и пишет `sitemap.xml`, `robots.txt`, `llms.txt` (+ `CNAME`, если задан домен).
 - Фото: оригиналы JPG в `public/images/`, WebP 640/1280 в `public/images/w/`. Компонент `<Photo name="...">` берёт имя без расширения. После добавления фото надо сгенерировать WebP (Pillow, quality 78, ширины 640 и 1280).

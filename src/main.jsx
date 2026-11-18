@@ -1,13 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "./fonts.js";
 import App from "./App.jsx";
 import { DICTS, DEFAULT_LANG } from "./i18n/index.js";
 
 // The language comes from <html lang="..."> of the page: / is Estonian, /ru/ is Russian.
+// <html data-page="legal"> marks the terms/privacy page (tingimused/, ru/usloviya/).
 const lang = DICTS[document.documentElement.lang] ? document.documentElement.lang : DEFAULT_LANG;
+const page = document.documentElement.dataset.page === "legal" ? "legal" : "home";
 const app = (
   <React.StrictMode>
-    <App dict={DICTS[lang]} />
+    <App dict={DICTS[lang]} page={page} />
   </React.StrictMode>
 );
 

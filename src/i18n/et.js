@@ -1,5 +1,6 @@
 // Eestikeelne versioon. Kõik tekstid on siin; komponendid võtavad need võtmete järgi.
 // NB: tõlge vajab enne avaldamist emakeelse lugeja ülevaatust.
+import legal from "./legal-et.js";
 const MONTHS = [
   "jaanuar", "veebruar", "märts", "aprill", "mai", "juuni",
   "juuli", "august", "september", "oktoober", "november", "detsember",
@@ -384,6 +385,9 @@ const et = {
     social: "SOTSIAALMEEDIA",
     rights: "Kõik õigused kaitstud.",
   },
+
+  // Terms, privacy and cookies page: texts in legal-et.js
+  legal,
 };
 
 export default et;
