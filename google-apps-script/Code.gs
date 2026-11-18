@@ -28,8 +28,8 @@ const CONFIG = {
   PREPAYMENT_EUR: 20, // сколько не возвращается при отмене после оплаты, упоминается в письме клиенту
   SEND_CLIENT_EMAIL: true, // письмо-подтверждение клиенту
   // Для фирменного письма. После переезда на свой домен поменять SITE_URL и LOGO_URL.
-  SITE_URL: "https://colibrarian.github.io/oro-studio/",
-  LOGO_URL: "https://colibrarian.github.io/oro-studio/images/email/oro-logo-240.png",
+  SITE_URL: "https://orostudiotallinn.com/",
+  LOGO_URL: "https://orostudiotallinn.com/images/email/oro-logo-240.png",
   PHONE_DISPLAY: "+372 5336 3795",
   PHONE_RAW: "37253363795",
   ADDRESS: "Narva mnt 4, Tallinn",
