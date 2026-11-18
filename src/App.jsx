@@ -1331,7 +1331,10 @@ function Booking() {
     const last = new Date(cursor.year, cursor.month + 1, 0).getDate();
     const url = `${BOOKING_API_URL}?action=busy&from=${ymd(cursor.year, cursor.month, 1)}&to=${ymd(cursor.year, cursor.month, last)}`;
     setBusyState("loading");
-    fetch(url)
+    // Если Google не ответил за 20 секунд, не держим календарь закрытым: переходим на запасной режим.
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = setTimeout(() => ctrl && ctrl.abort(), 20000);
+    fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -1339,9 +1342,11 @@ function Booking() {
         setBusyByMonth((prev) => ({ ...prev, [`${cursor.year}-${cursor.month}`]: data.busy || {} }));
         setBusyState("ok");
       })
-      .catch(() => !cancelled && setBusyState("error"));
+      .catch(() => !cancelled && setBusyState("error"))
+      .finally(() => clearTimeout(timer));
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [monthKey, reloadKey]);
 
