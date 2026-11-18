@@ -176,14 +176,19 @@ function book_(b) {
       invoiceNote = "\n\nАвтосчёт не отправлялся (программа под ключ), выставьте счёт вручную.";
     }
 
-    MailApp.sendEmail({
+    // Письмо студии: если не ушло (квота), заявка всё равно принята, событие уже в календаре.
+    try {
+      MailApp.sendEmail({
       to: CONFIG.NOTIFY_EMAIL,
       subject: `Новая заявка ORO Studio: ${date} ${pad_(startHour)}:00, ${name}`,
       body: details + invoiceNote + `\n\nСобытие в календаре: ${title}\nОтветить клиенту можно прямо на это письмо.`,
       name: "ORO Studio сайт",
       replyTo: email,
       attachments: invoice ? [invoice.pdf] : [],
-    });
+      });
+    } catch (e) {
+      console.error("studio email failed: " + e);
+    }
 
     if (CONFIG.SEND_CLIENT_EMAIL) {
       // Если письмо клиенту не ушло (квота, кривой адрес), заявка всё равно принята.
