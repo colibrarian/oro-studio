@@ -18,7 +18,16 @@ const { render, DICTS } = await import(pathToFileURL(serverEntry).href);
 
 const pageUrl = (lang) => `${SITE_URL}/${LANGS.find((l) => l.code === lang).path}`;
 const legalUrl = (lang) => `${SITE_URL}/${LEGAL_PAGES[lang]}`;
-const ogImage = `${SITE_URL}/images/brand-flowers.jpg`;
+const ogImage = `${SITE_URL}/images/brand-flowers.jpg`; // real photo for JSON-LD
+// Link preview card (1200×630, one per language): public/images/og-<lang>.jpg.
+const ogCard = (lang, alt) => [
+  `<meta property="og:image" content="${SITE_URL}/images/og-${lang}.jpg" />`,
+  `<meta property="og:image:type" content="image/jpeg" />`,
+  `<meta property="og:image:width" content="1200" />`,
+  `<meta property="og:image:height" content="630" />`,
+  `<meta property="og:image:alt" content="${esc(alt)}" />`,
+  `<meta name="twitter:card" content="summary_large_image" />`,
+];
 const esc = (str) =>
   String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // JSON inside <script>: neutralise "</script>" and similar sequences.
@@ -89,8 +98,7 @@ function head(lang) {
     `<meta property="og:url" content="${url}" />`,
     `<meta property="og:title" content="${esc(t.meta.ogTitle)}" />`,
     `<meta property="og:description" content="${esc(t.meta.ogDescription)}" />`,
-    `<meta property="og:image" content="${ogImage}" />`,
-    `<meta name="twitter:card" content="summary_large_image" />`,
+    ...ogCard(lang, t.meta.ogTitle),
     `<script type="application/ld+json">${jsonLd({ "@context": "https://schema.org", "@graph": [business, website, faq] })}</script>`,
   ].join("\n    ");
 }
@@ -121,7 +129,7 @@ function legalHead(lang) {
     `<meta property="og:url" content="${url}" />`,
     `<meta property="og:title" content="${esc(t.legal.meta.title)}" />`,
     `<meta property="og:description" content="${esc(t.legal.meta.description)}" />`,
-    `<meta property="og:image" content="${ogImage}" />`,
+    ...ogCard(lang, t.legal.meta.title),
     `<script type="application/ld+json">${jsonLd({ "@context": "https://schema.org", ...webpage })}</script>`,
   ].join("\n    ");
 }
