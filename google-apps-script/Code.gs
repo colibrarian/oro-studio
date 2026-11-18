@@ -45,7 +45,9 @@ const CONFIG = {
     SELLER_ADDRESS: "Narva mnt 4, 10117 Tallinn",
     IBAN: "EE46 2200 2210 9167 5087",
     BANK: "Swedbank",
-    START_NUMBER: 26075, // первый номер счёта; дальше 26076, 26077… без сброса по годам
+    // Номер = 2 цифры года + порядковый номер за год: 26075, 26076… а с 1 января 27001, 27002…
+    // Здесь можно задать, с какого номера начать конкретный год; без записи год начинается с ГГ001.
+    START_NUMBERS: { 2026: 26075 },
     DUE_DAYS: 3, // срок оплаты, но не позже дня мероприятия
     SKIP_TYPES: ["birthday", "bachelorette"], // под ключ: цена считается отдельно, счёт Наталья делает вручную
   },
@@ -396,12 +398,14 @@ function invoiceReady_() {
   return I.ENABLED && !!I.IBAN && !!I.SELLER_NAME && !!I.REG_CODE;
 }
 
-// Следующий номер счёта: 26075, 26076… Вызывается под LockService из book_().
+// Следующий номер счёта: 26075, 26076… в 2027 году 27001, 27002… Вызывается под LockService из book_().
 function nextInvoiceNumber_() {
   const props = PropertiesService.getScriptProperties();
-  const last = Number(props.getProperty("invoice_last") || 0);
-  const n = Math.max(last + 1, CONFIG.INVOICE.START_NUMBER);
-  props.setProperty("invoice_last", String(n));
+  const year = Number(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy"));
+  const key = "invoice_last_" + year;
+  const first = CONFIG.INVOICE.START_NUMBERS[year] || (year % 100) * 1000 + 1;
+  const n = Math.max(Number(props.getProperty(key) || 0) + 1, first);
+  props.setProperty(key, String(n));
   return String(n);
 }
 

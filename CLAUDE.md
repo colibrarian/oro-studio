@@ -26,7 +26,7 @@
 ## Открытые задачи
 
 - [x] Развернуть Google Apps Script под events@orostudiotallinn.com, вписать URL `/exec` в `BOOKING_API_URL` (2026-11-18). Осталось: тестовая заявка на живом сайте. При правке Code.gs: вставить код в редактор и Deploy → Manage deployments → New version (URL не меняется).
-- Автосчета: номера с 26075 подряд, реквизиты Flor Da Vida OÜ в `CONFIG.INVOICE` (Code.gs). Под ключ (birthday, bachelorette) без автосчёта.
+- Автосчета: номера ГГ+порядковый: 26075… в 2026, с 1 января 27001, реквизиты Flor Da Vida OÜ в `CONFIG.INVOICE` (Code.gs). Под ключ (birthday, bachelorette) без автосчёта.
 - [ ] Домен: подтвердить `orostudiotallinn.com` (куплен через Google, DNS теперь в Squarespace). A-записи `@` → 185.199.108–111.153, CNAME `www` → colibrarian.github.io, MX не трогать. Затем `CUSTOM_DOMAIN` в site.config.js и домен в GitHub → Settings → Pages + Enforce HTTPS.
 - [ ] Вычитка эстонского носителем.
 
