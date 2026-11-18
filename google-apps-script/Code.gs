@@ -21,7 +21,7 @@ const CONFIG = {
   CLOSE_HOUR: 20, // бронь должна закончиться к этому часу
   MAX_HOURS: 8,
   MAX_DAYS_AHEAD: 365,
-  MAX_BOOKINGS_PER_HOUR: 20, // защита от спама: не больше N заявок в час со всего сайта
+  MAX_BOOKINGS_PER_HOUR: 10, // защита от спама: не больше N заявок в час со всего сайта
   EVENT_COLOR: CalendarApp.EventColor.YELLOW, // заявки жёлтые, чтобы отличать от подтверждённых
   BUFFER_BEFORE_HOURS: 1, // столько часов перед каждым событием сайт показывает занятыми
   BUFFER_AFTER_HOURS: 1, // и столько после
@@ -45,7 +45,7 @@ const CONFIG = {
     SELLER_ADDRESS: "Narva mnt 4, 10117 Tallinn",
     IBAN: "EE46 2200 2210 9167 5087",
     BANK: "Swedbank",
-    PREFIX: "ORO", // номер счёта: ORO-2026-001. Отдельная серия, чтобы не пересекаться с бухгалтерией
+    START_NUMBER: 26075, // первый номер счёта; дальше 26076, 26077… без сброса по годам
     DUE_DAYS: 3, // срок оплаты, но не позже дня мероприятия
     SKIP_TYPES: ["birthday", "bachelorette"], // под ключ: цена считается отдельно, счёт Наталья делает вручную
   },
@@ -396,14 +396,13 @@ function invoiceReady_() {
   return I.ENABLED && !!I.IBAN && !!I.SELLER_NAME && !!I.REG_CODE;
 }
 
-// Следующий номер счёта: ORO-2026-001. Вызывается под LockService из book_().
+// Следующий номер счёта: 26075, 26076… Вызывается под LockService из book_().
 function nextInvoiceNumber_() {
   const props = PropertiesService.getScriptProperties();
-  const year = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy");
-  const key = "invoice_seq_" + year;
-  const n = Number(props.getProperty(key) || 0) + 1;
-  props.setProperty(key, String(n));
-  return `${CONFIG.INVOICE.PREFIX}-${year}-${String(n).padStart(3, "0")}`;
+  const last = Number(props.getProperty("invoice_last") || 0);
+  const n = Math.max(last + 1, CONFIG.INVOICE.START_NUMBER);
+  props.setProperty("invoice_last", String(n));
+  return String(n);
 }
 
 // Папка на Диске и таблица-журнал счетов создаются сами при первом счёте.
