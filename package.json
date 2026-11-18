@@ -11,7 +11,9 @@
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "lucide-react": "^0.400.0"
+    "lucide-react": "^0.400.0",
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fontsource/montserrat": "^5.2.8"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

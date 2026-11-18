@@ -1,4 +1,5 @@
 // Русская версия сайта. Все тексты — здесь; компоненты берут их по ключам.
+import legal from "./legal-ru.js";
 const MONTHS_GEN = [
   "января", "февраля", "марта", "апреля", "мая", "июня",
   "июля", "августа", "сентября", "октября", "ноября", "декабря",
@@ -386,6 +387,9 @@ const ru = {
     social: "МЫ В СОЦСЕТЯХ",
     rights: "Все права защищены.",
   },
+
+  // Terms, privacy and cookies page: texts in legal-ru.js
+  legal,
 };
 
 export default ru;

@@ -7,10 +7,11 @@ import { DICTS } from "./i18n/index.js";
 
 export { DICTS };
 
-export function render(lang) {
+// page: "home" (the one-page site) or "legal" (terms, privacy, cookies).
+export function render(lang, page = "home") {
   return renderToString(
     <React.StrictMode>
-      <App dict={DICTS[lang]} />
+      <App dict={DICTS[lang]} page={page} />
     </React.StrictMode>
   );
 }

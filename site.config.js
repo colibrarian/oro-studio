@@ -31,3 +31,7 @@ export const CONTACT = {
   telegram: "https://t.me/oro_studio_tallinn",
   facebook: "https://www.facebook.com/share/1DtTPKb5Eu/",
 };
+
+// Legal page (booking terms, privacy policy, cookies), one per language.
+// Each path needs its own HTML entry: tingimused/index.html, ru/usloviya/index.html.
+export const LEGAL_PAGES = { et: "tingimused/", ru: "ru/usloviya/" };
