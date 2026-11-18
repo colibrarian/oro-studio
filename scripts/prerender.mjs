@@ -19,9 +19,9 @@ const { render, DICTS } = await import(pathToFileURL(serverEntry).href);
 const pageUrl = (lang) => `${SITE_URL}/${LANGS.find((l) => l.code === lang).path}`;
 const legalUrl = (lang) => `${SITE_URL}/${LEGAL_PAGES[lang]}`;
 const ogImage = `${SITE_URL}/images/brand-flowers.jpg`; // real photo for JSON-LD
-// Link preview card (1200×630, one per language): public/images/og-<lang>.jpg.
+// Link preview image (1200×630, studio photo): public/images/og-studio.jpg.
 const ogCard = (lang, alt) => [
-  `<meta property="og:image" content="${SITE_URL}/images/og-${lang}.jpg" />`,
+  `<meta property="og:image" content="${SITE_URL}/images/og-studio.jpg" />`,
   `<meta property="og:image:type" content="image/jpeg" />`,
   `<meta property="og:image:width" content="1200" />`,
   `<meta property="og:image:height" content="630" />`,
