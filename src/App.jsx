@@ -1729,13 +1729,6 @@ function Booking() {
               </p>
             </div>
           )}
-
-          <p style={{ fontFamily: SANS, fontSize: 12.5, lineHeight: 1.6, color: COLORS.inkSoft, margin: "20px 0 0" }}>
-            {b.urgentA}
-            <a href={whatsapp(t.wa.urgent)} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.oliveDark, fontWeight: 500 }}>
-              {b.urgentLink}
-            </a>
-          </p>
         </Card>
 
         <Card>
