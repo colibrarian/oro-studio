@@ -20,6 +20,12 @@ const CONFIG = {
   OPEN_HOUR: 10, // первый слот
   CLOSE_HOUR: 20, // бронь должна закончиться к этому часу
   MAX_HOURS: 8,
+  // Минимальный срок брони: начало не раньше, чем через LEAD_HOURS после заявки.
+  // Заявка после LEAD_LATE_HOUR или ночью (до OPEN_HOUR) считается сделанной в OPEN_HOUR
+  // ближайшего утра: в 21:00 → самое раннее завтра 15:00, в 03:00 → сегодня 15:00.
+  // То же правило на сайте (LEAD_HOURS / LEAD_LATE_HOUR в App.jsx), менять синхронно.
+  LEAD_HOURS: 5,
+  LEAD_LATE_HOUR: 18,
   MAX_DAYS_AHEAD: 365,
   MAX_BOOKINGS_PER_HOUR: 10, // защита от спама: не больше N заявок в час со всего сайта
   EVENT_COLOR: CalendarApp.EventColor.YELLOW, // заявки жёлтые, чтобы отличать от подтверждённых
@@ -155,6 +161,7 @@ function book_(b) {
   const end = at_(date, startHour + hours);
   const now = new Date();
   if (start <= now) return { ok: false, error: "past" };
+  if (start < earliestStart_(now)) return { ok: false, error: "too_soon" };
   if (start - now > CONFIG.MAX_DAYS_AHEAD * 24 * 3600 * 1000) return { ok: false, error: "bad_request" };
 
   if (!rateOk_()) return { ok: false, error: "rate" };
@@ -259,6 +266,20 @@ function calendar_() {
 function at_(ymd, hour) {
   const day = Utilities.parseDate(ymd + " 00:00", CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm");
   return new Date(day.getTime() + hour * 3600 * 1000);
+}
+
+// Самое раннее начало брони для заявки, сделанной в момент now (см. CONFIG.LEAD_*).
+function earliestStart_(now) {
+  const today = Utilities.formatDate(now, CONFIG.TIMEZONE, "yyyy-MM-dd");
+  const hour = Number(Utilities.formatDate(now, CONFIG.TIMEZONE, "H"));
+  let base = now;
+  if (hour < CONFIG.OPEN_HOUR) {
+    base = at_(today, CONFIG.OPEN_HOUR);
+  } else if (hour >= CONFIG.LEAD_LATE_HOUR) {
+    const tomorrow = Utilities.formatDate(new Date(at_(today, 12).getTime() + 24 * 3600 * 1000), CONFIG.TIMEZONE, "yyyy-MM-dd");
+    base = at_(tomorrow, CONFIG.OPEN_HOUR);
+  }
+  return new Date(base.getTime() + CONFIG.LEAD_HOURS * 3600 * 1000);
 }
 
 // События, которые могут задеть [s, f) с учётом буфера.

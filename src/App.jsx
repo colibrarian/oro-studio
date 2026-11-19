@@ -1263,6 +1263,13 @@ function Pricing() {
 --------------------------------------------------------- */
 const TIME_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
 const STUDIO_CLOSE_HOUR = 20; // last booking must end by this hour
+// Минимальный срок брони (то же правило в Code.gs, CONFIG.LEAD_*):
+// начало не раньше, чем через LEAD_HOURS после заявки; заявка после LEAD_LATE_HOUR
+// или ночью (до открытия) считается сделанной в 10:00 ближайшего рабочего утра.
+const STUDIO_TZ = "Europe/Tallinn";
+const STUDIO_OPEN_HOUR = 10;
+const LEAD_HOURS = 5;
+const LEAD_LATE_HOUR = 18;
 const DURATIONS = [1, 2, 3, 4, 5, 6, 7, 8];
 const EVENT_TYPES = ["individual", "group", "workshop", "birthday", "bachelorette", "game", "other"];
 const TURNKEY_TYPES = ["birthday", "bachelorette"];
@@ -1285,6 +1292,25 @@ function maxDurationFrom(time, busyHours = []) {
   return Math.max(1, h - start);
 }
 
+// Earliest bookable start in studio time: { ymd: "2026-11-20", min: 900 } (minutes from midnight).
+function earliestStart(now = new Date()) {
+  const p = {};
+  new Intl.DateTimeFormat("en-GB", { timeZone: STUDIO_TZ, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", hourCycle: "h23" })
+    .formatToParts(now)
+    .forEach(({ type, value }) => (p[type] = Number(value)));
+  let y = p.year, m = p.month - 1, d = p.day;
+  let base = p.hour * 60 + p.minute;
+  if (p.hour < STUDIO_OPEN_HOUR) base = STUDIO_OPEN_HOUR * 60;
+  else if (p.hour >= LEAD_LATE_HOUR) {
+    const next = new Date(Date.UTC(y, m, d + 1));
+    y = next.getUTCFullYear(); m = next.getUTCMonth(); d = next.getUTCDate();
+    base = STUDIO_OPEN_HOUR * 60;
+  }
+  return { ymd: ymd(y, m, d), min: base + LEAD_HOURS * 60 };
+}
+
+const tooSoon = (earliest, dateYmd, hour) => !!earliest && (dateYmd < earliest.ymd || (dateYmd === earliest.ymd && hour * 60 < earliest.min));
+
 function buildCalendar(year, month) {
   const first = new Date(year, month, 1);
   const startDay = (first.getDay() + 6) % 7; // Monday-first
@@ -1305,10 +1331,15 @@ function Booking() {
   // build time, so the calendar grid is filled in after the page loads.
   const [today, setToday] = useState(null);
   const [cursor, setCursor] = useState(null);
+  const [earliest, setEarliest] = useState(null);
   useEffect(() => {
     const now = new Date();
     setToday(now);
     setCursor({ year: now.getFullYear(), month: now.getMonth() });
+    setEarliest(earliestStart(now));
+    // Страница может быть открыта долго: раз в минуту пересчитываем границу.
+    const timer = setInterval(() => setEarliest(earliestStart()), 60000);
+    return () => clearInterval(timer);
   }, []);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -1356,7 +1387,8 @@ function Booking() {
 
   const isToday =
     !!today && !!cursor && selectedDay === today.getDate() && cursor.month === today.getMonth() && cursor.year === today.getFullYear();
-  const slotPassed = (slot) => isToday && hourOf(slot) <= today.getHours();
+  const slotPassed = (slot) =>
+    (isToday && hourOf(slot) <= today.getHours()) || tooSoon(earliest, ymd(cursor.year, cursor.month, selectedDay), hourOf(slot));
   const slotBusy = (slot) => busyHours.includes(hourOf(slot));
 
   const maxDuration = selectedTime ? maxDurationFrom(selectedTime, busyHours) : DURATIONS.length;
@@ -1381,6 +1413,8 @@ function Booking() {
     const isTodayCell = cursor.year === today.getFullYear() && cursor.month === today.getMonth() && d === today.getDate();
     return TIME_SLOTS.every((slot) => hours.includes(hourOf(slot)) || (isTodayCell && hourOf(slot) <= today.getHours()));
   };
+  // Day is too close: no slot starts after the minimum notice (online booking closed, WhatsApp only).
+  const isTooSoonDay = (d) => !!d && !!cursor && TIME_SLOTS.every((slot) => tooSoon(earliest, ymd(cursor.year, cursor.month, d), hourOf(slot)));
 
   const changeMonth = (delta) => {
     if (!cursor) return;
@@ -1454,8 +1488,9 @@ function Booking() {
           setDoneVia("calendar");
           setConfirmed(true);
           setReloadKey((k) => k + 1);
-        } else if (data && (data.error === "busy" || data.error === "past")) {
-          setSendState("taken");
+        } else if (data && (data.error === "busy" || data.error === "past" || data.error === "too_soon")) {
+          if (data.error === "too_soon") setEarliest(earliestStart());
+          setSendState(data.error === "too_soon" ? "soon" : "taken");
           setSelectedTime(null);
           setDuration(1);
           setReloadKey((k) => k + 1);
@@ -1586,7 +1621,7 @@ function Booking() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, minHeight: cursor ? undefined : 260 }}>
             {cells.map((d, i) => {
               const full = !!d && !isPast(d) && isFull(d);
-              const disabled = !d || isPast(d) || full;
+              const disabled = !d || isPast(d) || full || isTooSoonDay(d);
               const active = !!d && d === selectedDay;
               return (
                 <button
@@ -1694,6 +1729,13 @@ function Booking() {
               </p>
             </div>
           )}
+
+          <p style={{ fontFamily: SANS, fontSize: 12.5, lineHeight: 1.6, color: COLORS.inkSoft, margin: "20px 0 0" }}>
+            {b.urgentA}
+            <a href={whatsapp(t.wa.urgent)} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.oliveDark, fontWeight: 500 }}>
+              {b.urgentLink}
+            </a>
+          </p>
         </Card>
 
         <Card>
@@ -1813,9 +1855,9 @@ function Booking() {
             >
               {sendState === "sending" ? b.sending : BOOKING_API_URL && busyState !== "error" ? b.submitCal : b.submit}
             </button>
-            {sendState === "taken" && (
+            {(sendState === "taken" || sendState === "soon") && (
               <p role="alert" style={{ fontFamily: SANS, fontSize: 12.5, lineHeight: 1.6, color: COLORS.oliveDark, fontWeight: 500, margin: 0, textAlign: "center" }}>
-                {b.taken}
+                {sendState === "soon" ? b.tooSoon : b.taken}
               </p>
             )}
             {sendState === "error" && (
