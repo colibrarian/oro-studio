@@ -20,6 +20,7 @@ const et = {
     format: "Tere! Palun aidake mul valida ORO Studios sobiv ürituse formaat.",
     turnkey: "Tere! Sooviksin teada, kui palju maksab võtmed-kätte üritus ORO Studios.",
     regular: "Tere! Sooviksin ORO Studios regulaarselt üritusi korraldada.",
+    urgent: "Tere! Sooviksin ORO Studio broneerida lähiajaks.",
     booking: ({ type, date, time, hours, guests, name, email, contact, comment, price }) =>
       [
         "Tere! Sooviksin ORO Studios aega broneerida.",
@@ -307,6 +308,9 @@ const et = {
     slotBusy: "See aeg on juba broneeritud",
     dayFull: "See päev on täielikult broneeritud",
     taken: "Keegi broneeris selle aja just praegu. Palun vali mõni teine aeg.",
+    tooSoon: "Selleks ajaks on veebibroneerimine juba suletud. Vali hilisem aeg või kirjuta meile WhatsAppi.",
+    urgentA: "Vaja kiiremini? ",
+    urgentLink: "Kirjuta meile WhatsAppi",
     sendError: "Päringu saatmine ebaõnnestus. Saada see WhatsAppi kaudu, see võtab vaid minuti.",
     sendErrorCta: "Saada WhatsAppi kaudu",
     doneTitleCal: (name) => `Aitäh, ${name}! Päring on vastu võetud`,
